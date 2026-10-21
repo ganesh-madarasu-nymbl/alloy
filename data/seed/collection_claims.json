@@ -1,0 +1,44 @@
+[
+  {
+    "id": "c1",
+    "paper": "synthetic:lorenz-study-1",
+    "title": "Synthetic Lorenz study 1",
+    "method": "sindy",
+    "quantity": "equations_recovered",
+    "outcome": "recovers",
+    "conditions": {
+      "system": "lorenz",
+      "noise": 0.01
+    },
+    "quote": "SYNTHETIC demonstration; this result is not a published claim.",
+    "source": "seed"
+  },
+  {
+    "id": "c2",
+    "paper": "synthetic:lorenz-study-2",
+    "title": "Synthetic Lorenz study 2",
+    "method": "sindy",
+    "quantity": "equations_recovered",
+    "outcome": "fails",
+    "conditions": {
+      "system": "lorenz",
+      "noise": 0.2
+    },
+    "quote": "SYNTHETIC demonstration; this result is not a published claim.",
+    "source": "seed"
+  },
+  {
+    "id": "c3",
+    "paper": "synthetic:lorenz-study-3",
+    "title": "Synthetic Lorenz study 3",
+    "method": "sindy",
+    "quantity": "equations_recovered",
+    "outcome": "unstable",
+    "conditions": {
+      "system": "lorenz",
+      "noise": 0.1
+    },
+    "quote": "SYNTHETIC demonstration; this result is not a published claim.",
+    "source": "seed"
+  }
+]

@@ -48,8 +48,23 @@ def main() -> None:
     bond_import.add_argument("--limit", type=int, default=5)
     evidence = sub.add_parser("evidence-check", help="inspect reviewed sources and reproduction gaps")
     evidence.add_argument("path", type=Path, nargs="?")
+    campaign = sub.add_parser("campaign", help="preview or audit a collection under one offline budget")
+    source = campaign.add_mutually_exclusive_group(required=True)
+    source.add_argument("--synthetic", type=Path, help="JSON list of explicitly seed-labeled claims")
+    source.add_argument("--evidence", type=Path, help="validated reviewed EvidenceBundle")
+    campaign.add_argument("--plan-only", action="store_true")
+    campaign.add_argument("--runs", type=int, default=60, help="total campaign budget, shared by every audit")
+    campaign.add_argument("--minutes", type=float, default=5)
+    campaign.add_argument("--max-audits", type=int, default=3)
+    campaign.add_argument("--question", default=DEFAULT_QUESTION)
 
     args = parser.parse_args()
+    if args.command == "campaign":
+        try:
+            run_collection(args)
+        except (OSError, ValueError) as exc:
+            parser.exit(1, f"Campaign input invalid: {exc}\n")
+        return
     if args.command == "evidence-check":
         from alloy.knowledge.source_bundle import DEFAULT_BUNDLE, load_bundle
 
@@ -107,6 +122,23 @@ def main() -> None:
         run_bench(args.runs, args.scenario, args.alloy_only, args.repeat)
     else:
         run_demo(args)
+
+
+def run_collection(args) -> None:
+    from alloy.agent.campaign import _validate_goal, run_campaign
+    from alloy.knowledge.collection_input import read_collection
+
+    goal = Goal(question=args.question, budget=Budget(runs=args.runs, minutes=args.minutes))
+    _validate_goal(goal)
+    path = args.evidence or args.synthetic
+    plan = read_collection(path.read_bytes(), reviewed=bool(args.evidence), max_audits=args.max_audits)
+    if args.plan_only:
+        print(plan.model_dump_json(indent=2))
+        return
+    campaign = run_campaign(goal, plan)
+    print(f"campaign {campaign.id}: {campaign.runs_used}/{goal.budget.runs} total runs; {campaign.status}")
+    print(f"record: {settings.run_dir / campaign.id / 'campaign.json'}")
+    print(f"report: {settings.run_dir / campaign.id / 'campaign.md'}")
 
 
 def run_demo(args) -> None:
@@ -244,4 +276,7 @@ def run_coatings(layers: int, tolerance: float, runs: int) -> None:
             f"  {method:15s} error under tolerance {s['mean']:.3f} +/- {s['stderr']:.3f}  "
             f"nominal {sum(watts) / len(watts):.1f} W/m^2  {note}"
         )
-    print(f"best: {best}; example stack: {results[best][0].artifacts['layers']}")
+    if best is None:
+        print("No sufficiently sampled finite comparison; no best coating established.")
+    else:
+        print(f"best: {best}; example stack: {results[best][0].artifacts['layers']}")

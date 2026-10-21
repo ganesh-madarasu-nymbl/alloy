@@ -15,6 +15,14 @@ def read_investigation(data: bytes) -> Investigation:
     return inv
 
 
+def read_campaign(data: bytes):
+    from alloy.agent.campaign import Campaign
+
+    if len(data) > 5_000_000:
+        raise ValueError("Campaign records must be smaller than 5 MB")
+    return Campaign.model_validate_json(data)
+
+
 def local_notebook(path: str | None, run_root: Path) -> bytes | None:
     if not path:
         return None

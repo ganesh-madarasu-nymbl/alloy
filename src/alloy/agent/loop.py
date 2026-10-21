@@ -36,7 +36,7 @@ class Investigation(BaseModel):
     skipped: list[str] = Field(default_factory=list)  # conflicts set aside, with the reason
     hard_conditions: dict[str, Any] = Field(default_factory=dict)
     candidates: list[dict[str, Any]] = Field(default_factory=list)
-    comparison: dict[str, dict[str, float]] = Field(default_factory=dict)  # method -> mean, worst
+    comparison: dict[str, dict[str, float | None]] = Field(default_factory=dict)  # adaptive counts/drop markers
     challenge: dict[str, Any] = Field(default_factory=dict)
     verdict: Verdict | None = None
     referee: list[str] = Field(default_factory=list)
@@ -99,14 +99,16 @@ def investigate(
     run_root: Path | None = None,
     memory_dir: Path | None = None,
     referee: bool = False,
+    *,
+    output_dir: Path | None = None,
 ) -> Investigation:
-    inv = Investigation(id=datetime.now().strftime("%Y%m%d-%H%M%S-%f"), goal=goal)
-    run_dir = Path(run_root or settings.run_dir) / inv.id
+    inv = Investigation(id=datetime.now().strftime("%Y%m%d-%H%M%S-%f"), goal=goal, claims=list(claims or []))
+    run_dir = Path(output_dir) if output_dir is not None else Path(run_root or settings.run_dir) / inv.id
     runner = Runner(goal.budget, run_dir)
-    adapter = get_adapter(goal.adapter)
     deadends = DeadEndMap(Path(memory_dir or settings.memory_dir) / "deadends.jsonl")
 
     try:
+        adapter = get_adapter(goal.adapter)
         _run(inv, offline, claims or [], seed_claims, runner, adapter, deadends, run_dir)
         if referee and not offline and inv.verdict:
             from alloy.agent.referee import review
@@ -214,6 +216,8 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
     tried = [a.method] + [c.method for c in found]
     specs = {m: hard.model_copy(deep=True, update={"method": m}) for m in tried}
     inv.comparison, runs_by_method, best = compare.adaptive(runner, specs)
+    if not best:
+        return _stop(inv, "comparison has no finite, sufficiently sampled method; no winner established")
     scores = {m: c["mean"] for m, c in inv.comparison.items()}
     close = [m for m, c in inv.comparison.items() if m != best and c["dropped_after"] is None]
 

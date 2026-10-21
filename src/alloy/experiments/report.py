@@ -114,10 +114,12 @@ def to_markdown(inv, second_opinion: dict[str, Any] | None = None) -> str:
     if inv.comparison:
         out += [f"## Controlled comparison at {inv.hard_conditions}", ""]
         out += _table(
-            ["Method", "Mean", "Worst", "Std error"],
-            [[m, _record(s).get("mean"), _record(s).get("worst"), _record(s).get("stderr")]
+            ["Method", "Mean", "Worst", "Std error", "n", "Dropped after"],
+            [[m, *[_record(s).get(k) for k in ("mean", "worst", "stderr", "n", "dropped_after")]]
              for m, s in inv.comparison.items()],
         )
+        out += ["Adaptive racing drops clear losers and samples close methods further. "
+                "Surviving alternatives may be tied; unequal sample counts are recorded above.", ""]
     if inv.challenge:
         out += ["## Unseen cases", ""]
         ch = _record(inv.challenge)
