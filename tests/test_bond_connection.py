@@ -35,6 +35,7 @@ def test_codex_search_caches_raw_evidence_and_replays_without_model(monkeypatch,
 
 
 @pytest.mark.parametrize("result", [
+    [], None, 12,
     {"isError": True}, {"structuredContent": {"unexpected": []}},
     {"structuredContent": {"papers": [{"title": "No ID"}]}},
 ])

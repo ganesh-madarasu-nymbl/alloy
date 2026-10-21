@@ -18,10 +18,10 @@ def read_investigation(data: bytes) -> Investigation:
 def local_notebook(path: str | None, run_root: Path) -> bytes | None:
     if not path:
         return None
-    candidate = Path(path).resolve()
-    if candidate.suffix != ".ipynb" or not candidate.is_relative_to(run_root.resolve()):
-        return None
     try:
+        candidate = Path(path).resolve()
+        if candidate.suffix != ".ipynb" or not candidate.is_relative_to(run_root.resolve()):
+            return None
         return candidate.read_bytes()
-    except OSError:
+    except (OSError, RuntimeError):
         return None

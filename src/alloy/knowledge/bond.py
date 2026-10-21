@@ -37,6 +37,8 @@ def _cache_path(query: str, k: int, backend: str | None = None):
 
 def papers_from_mcp(result: dict) -> list[Paper]:
     """Normalize returned metadata/abstracts; never invent full-text passages."""
+    if not isinstance(result, dict):
+        raise ValueError("Bond result must be a JSON object")
     if result.get("isError"):
         raise ValueError("Bond search failed; no papers were cached")
     payload = result.get("structuredContent")
@@ -89,6 +91,8 @@ def papers_from_mcp(result: dict) -> list[Paper]:
 
 
 def cache_mcp_result(query: str, k: int, result: dict):
+    if not query.strip() or not 1 <= k <= 100:
+        raise ValueError("Provide a nonempty research query and a limit from 1 to 100")
     papers = papers_from_mcp(result)
     path = _cache_path(query, k, backend="codex")
     path.with_suffix(".raw.json").write_text(json.dumps({

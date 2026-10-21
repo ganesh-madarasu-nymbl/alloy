@@ -73,7 +73,7 @@ def test_saved_results_show_partial_verdict_hidden_search_and_exports(monkeypatc
     assert any("Unstated-setting hypotheses" == s.value for s in app.subheader)
     assert any("units differ" in s.value for s in app.text)
     assert any("unavailable" in s.value for s in app.caption)
-    assert len(app.get("download_button")) == 2
+    assert len(app.get("download_button")) == 3
     run.assert_not_called()
 
 

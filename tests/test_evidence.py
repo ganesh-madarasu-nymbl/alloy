@@ -73,6 +73,7 @@ def test_literal_number_check_does_not_match_part_of_thousands():
 def test_source_links_and_placeholder_labels(seed_claims):
     assert paper_url('doi:10.1234/example') == 'https://doi.org/10.1234/example'
     assert paper_url('arxiv:2409.13740') == 'https://arxiv.org/abs/2409.13740'
+    assert paper_url('2111.10992v1') == 'https://arxiv.org/abs/2111.10992v1'
     assert paper_url('javascript:alert(1)') is None
     assert 'placeholder' in evidence_label(seed_claims[0]).lower()
 

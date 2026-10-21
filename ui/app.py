@@ -11,6 +11,7 @@ from alloy.agent.loop import investigate
 from alloy.cli import DEFAULT_QUESTION
 from alloy.config import settings
 from alloy.contracts import Budget, Goal
+from alloy.experiments.report import to_markdown
 from alloy.knowledge.extract import load_seed
 from alloy.knowledge.graph import EvidenceGraph
 from alloy.knowledge.presentation import condition_rows, evidence_label, paper_url
@@ -55,6 +56,8 @@ def show_deadends():
     path = settings.memory_dir / "deadends.jsonl"
     try:
         entries = DeadEndMap(path).entries() if path.exists() else []
+        if not all(isinstance(entry, dict) for entry in entries):
+            raise ValueError("Invalid failure history record")
     except (OSError, ValueError):
         st.warning("Failure history could not be read. Check the local JSONL file.")
         return
@@ -219,7 +222,7 @@ if inv.candidates:
         source = candidate.get("source_paper")
         url = paper_url(source) if source else None
         if url:
-            st.link_button(f"Source for {candidate['method']}", url)
+            st.link_button(f"Source for {candidate.get('method', 'unknown')}", url)
         if candidate.get("source_quote"):
             st.text(candidate["source_quote"])
         st.caption("Quote occurrence checks provenance only. A proposed combination still needs experimental testing.")
@@ -233,4 +236,5 @@ elif inv.notebook:
 graph = EvidenceGraph()
 graph.add_claims(inv.claims)
 st.download_button("Download evidence graph", json.dumps(nx.node_link_data(graph.g, edges="links")), "graph.json")
+st.download_button("Download audit report", to_markdown(inv), "audit.md")
 st.download_button("Download investigation record", inv.model_dump_json(indent=2), "investigation.json")

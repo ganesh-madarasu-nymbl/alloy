@@ -1,5 +1,6 @@
 """Evidence presentation without asserting that a retrieved passage is independently verified."""
 
+import re
 from urllib.parse import quote
 
 from alloy.contracts import Claim
@@ -16,6 +17,8 @@ def paper_url(identifier: str) -> str | None:
     for prefix in ("arxiv:", "arXiv:", "https://arxiv.org/abs/"):
         if value.startswith(prefix):
             return "https://arxiv.org/abs/" + quote(value[len(prefix):], safe="/.-_")
+    if re.fullmatch(r"\d{4}\.\d{4,5}(?:v\d+)?", value):
+        return "https://arxiv.org/abs/" + value
     return None
 
 
