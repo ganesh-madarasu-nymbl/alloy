@@ -1,6 +1,8 @@
 """Turn paper passages into Claim records."""
 
 import json
+import math
+import re
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -35,7 +37,8 @@ Always record the conditions a result was measured under, using the condition ke
 
 def _number(text: str | None) -> float | None:
     try:
-        return float(text) if text is not None else None
+        value = float(text) if text is not None else None
+        return value if value is not None and math.isfinite(value) else None
     except ValueError:
         return None
 
@@ -45,13 +48,31 @@ def _coerce(value: str):
     return number if number is not None else value
 
 
+def number_in_quote(value: float, quote: str) -> bool:
+    """Check literal numeric support, without inferring unit conversions or scientific truth."""
+    tokens = re.findall(
+        r"(?<![\w.,])[+-]?(?:\d+(?:,\d{3})*(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?![\w,]|\.\d)", quote,
+    )
+    return any(_number(token.replace(",", "")) == value for token in tokens)
+
+
 def extract_claims(paper: Paper, condition_keys: tuple[str, ...], start: int = 1) -> list[Claim]:
+    if not paper.passages or not any(p.strip() for p in paper.passages):
+        raise ValueError(f"{paper.id}: no source passages available for claim extraction")
     prompt = (
         f"Paper: {paper.title} ({paper.id})\n"
         f"Condition keys to use where they apply: {', '.join(condition_keys)}\n\n"
         "Passages:\n" + "\n".join(f"- {p}" for p in paper.passages)
     )
     extracted = llm.parse(prompt, ExtractedClaims, system=SYSTEM).claims
+    for claim in extracted:
+        quote = " ".join(claim.quote.split())
+        if not quote or not any(quote in " ".join(p.split()) for p in paper.passages):
+            raise ValueError(f"{paper.id}: extracted quote is absent from supplied passages")
+        if claim.value is not None and _number(claim.value) is None:
+            raise ValueError(f"{paper.id}: claim value is not a finite number")
+        if claim.value is not None and not number_in_quote(_number(claim.value), claim.quote):
+            raise ValueError(f"{paper.id}: numeric value is absent from the supporting quote")
     return [
         Claim(
             id=f"c{start + i}",

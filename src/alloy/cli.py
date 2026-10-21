@@ -1,5 +1,6 @@
 import argparse
 import json
+from pathlib import Path
 
 from alloy.config import settings
 from alloy.contracts import Budget, Goal
@@ -17,6 +18,7 @@ def main() -> None:
     demo.add_argument("--referee", action="store_true", help="run the referee agent (online only)")
     demo.add_argument("--runs", type=int, default=60)
     demo.add_argument("--minutes", type=float, default=5.0)
+    demo.add_argument("--evidence", type=Path, help="use a reviewed evidence bundle without paid extraction")
 
     bench = sub.add_parser("bench", help="score Alloy and the plain agent on the benchmark scenarios")
     bench.add_argument("--runs", type=int, default=60)
@@ -36,20 +38,83 @@ def main() -> None:
     coat.add_argument("--runs", type=int, default=30)
 
     sub.add_parser("check", help="show configuration")
+    sub.add_parser("bond-check", help="discover Valency tools using saved Codex OAuth; no model call")
+    bond_search = sub.add_parser("bond-search", help="search Bond through Codex OAuth; no model call")
+    bond_search.add_argument("query")
+    bond_search.add_argument("--limit", type=int, default=5)
+    bond_import = sub.add_parser("bond-import", help="cache a native MCP result without starting a subprocess")
+    bond_import.add_argument("result", type=Path)
+    bond_import.add_argument("--query", required=True)
+    bond_import.add_argument("--limit", type=int, default=5)
+    evidence = sub.add_parser("evidence-check", help="inspect reviewed sources and reproduction gaps")
+    evidence.add_argument("path", type=Path, nargs="?")
+    campaign = sub.add_parser("campaign", help="preview or audit a collection under one offline budget")
+    source = campaign.add_mutually_exclusive_group(required=True)
+    source.add_argument("--synthetic", type=Path, help="JSON list of explicitly seed-labeled claims")
+    source.add_argument("--evidence", type=Path, help="validated reviewed EvidenceBundle")
+    campaign.add_argument("--plan-only", action="store_true")
+    campaign.add_argument("--runs", type=int, default=60, help="total campaign budget, shared by every audit")
+    campaign.add_argument("--minutes", type=float, default=5)
+    campaign.add_argument("--max-audits", type=int, default=3)
+    campaign.add_argument("--question", default=DEFAULT_QUESTION)
 
     args = parser.parse_args()
+    if args.command == "campaign":
+        try:
+            run_collection(args)
+        except (OSError, ValueError) as exc:
+            parser.exit(1, f"Campaign input invalid: {exc}\n")
+        return
+    if args.command == "evidence-check":
+        from alloy.knowledge.source_bundle import DEFAULT_BUNDLE, load_bundle
+
+        try:
+            bundle = load_bundle(args.path or DEFAULT_BUNDLE)
+        except (OSError, ValueError) as exc:
+            parser.exit(1, f"Evidence bundle invalid: {exc}\n")
+        print(json.dumps(bundle.summary(), indent=2))
+        return
+    if args.command == "bond-import":
+        from alloy.knowledge.bond import cache_mcp_result
+
+        if not args.query.strip() or not 1 <= args.limit <= 100:
+            parser.error("Provide a nonempty query and a limit from 1 to 100")
+        try:
+            raw = json.loads(args.result.read_text(encoding="utf-8"))
+            path, papers = cache_mcp_result(args.query, args.limit, raw)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.exit(1, f"Bond result invalid: {exc}\n")
+        print(json.dumps({"cache": str(path), "papers": len(papers), "evidence": "metadata_and_abstracts"}))
+        return
+    if args.command in {"bond-check", "bond-search"}:
+        from alloy.knowledge.bond import cache_mcp_result
+        from alloy.knowledge.codex_bond import BondConnectionError, inspect_connection, search_raw
+
+        try:
+            if args.command == "bond-check":
+                server = inspect_connection()
+                print(json.dumps({
+                    "server": server["name"], "auth_status": server.get("authStatus"),
+                    "runtime_status": server.get("runtimeStatus"), "tools": server["tools"],
+                }, indent=2))
+            else:
+                if not args.query.strip() or not 1 <= args.limit <= 100:
+                    parser.error("Provide a nonempty query and a limit from 1 to 100")
+                result = search_raw(args.query, args.limit)
+                path, papers = cache_mcp_result(args.query, args.limit, result)
+                print(json.dumps({"cache": str(path), "papers": [p.model_dump() for p in papers]}, indent=2))
+        except (BondConnectionError, OSError, ValueError) as exc:
+            parser.exit(1, f"Bond connection unverified: {exc}\n")
+        return
     if args.command == "check":
-        print(
-            json.dumps(
-                {
-                    "model": settings.model,
-                    "bond_configured": settings.bond_configured,
-                    "run_dir": str(settings.run_dir),
-                },
-                indent=2,
-            )
-        )
-    elif args.command == "audit":
+        print(json.dumps({
+            "model": settings.model,
+            "bond_backend": settings.bond_backend,
+            "bond_configured": settings.bond_configured,
+            "run_dir": str(settings.run_dir),
+        }, indent=2))
+        return
+    if args.command == "audit":
         run_audit(args.scenario, args.runs)
     elif args.command == "coatings":
         run_coatings(args.layers, args.tolerance, args.runs)
@@ -59,11 +124,42 @@ def main() -> None:
         run_demo(args)
 
 
+def run_collection(args) -> None:
+    from alloy.agent.campaign import _validate_goal, run_campaign
+    from alloy.knowledge.collection_input import read_collection
+
+    goal = Goal(question=args.question, budget=Budget(runs=args.runs, minutes=args.minutes))
+    _validate_goal(goal)
+    path = args.evidence or args.synthetic
+    plan = read_collection(path.read_bytes(), reviewed=bool(args.evidence), max_audits=args.max_audits)
+    if args.plan_only:
+        print(plan.model_dump_json(indent=2))
+        return
+    campaign = run_campaign(goal, plan)
+    print(f"campaign {campaign.id}: {campaign.runs_used}/{goal.budget.runs} total runs; {campaign.status}")
+    print(f"selected audits: {len(campaign.audits)}; complete means recorded accounting, not scientific resolution")
+    print(f"record: {settings.run_dir / campaign.id / 'campaign.json'}")
+    print(f"report: {settings.run_dir / campaign.id / 'campaign.md'}")
+
+
 def run_demo(args) -> None:
     from alloy.agent.loop import investigate
 
+    claims = None
+    if args.evidence:
+        from alloy.knowledge.source_bundle import load_bundle
+
+        try:
+            bundle = load_bundle(args.evidence)
+        except (OSError, ValueError) as exc:
+            raise SystemExit(f"Evidence bundle invalid: {exc}") from exc
+        if not bundle.summary()["eligible_cross_paper_pair"]:
+            raise SystemExit("No eligible reviewed cross-paper pair. Run alloy evidence-check for reproduction gaps.")
+        if args.online or args.referee:
+            raise SystemExit("Use --evidence without --online/--referee for a replay without paid calls.")
+        claims = bundle.runnable_claims()
     goal = Goal(question=args.question, budget=Budget(runs=args.runs, minutes=args.minutes))
-    inv = investigate(goal, offline=not args.online, referee=args.referee)
+    inv = investigate(goal, offline=not args.online, referee=args.referee, claims=claims)
     print(f"investigation {inv.id}: {inv.runs_used} runs, stopped at stage '{inv.stage}'")
     if inv.attribution:
         print(
@@ -176,9 +272,13 @@ def run_coatings(layers: int, tolerance: float, runs: int) -> None:
     print(f"{layers} layers, thickness error std {tolerance} nm, {runner.runs_used} runs")
     for method, s in comparison.items():
         watts = [r.metrics["net_cooling_w_m2"] for r in results[method] if r.ok]
+        nominal = f"{sum(watts) / len(watts):.1f} W/m^2" if watts else "unavailable"
         note = f"dropped after {s['dropped_after']} seeds" if s["dropped_after"] else ""
         print(
             f"  {method:15s} error under tolerance {s['mean']:.3f} +/- {s['stderr']:.3f}  "
-            f"nominal {sum(watts) / len(watts):.1f} W/m^2  {note}"
+            f"nominal {nominal}  {note}"
         )
-    print(f"best: {best}; example stack: {results[best][0].artifacts['layers']}")
+    if best is None:
+        print("No sufficiently sampled finite comparison; no best coating established.")
+    else:
+        print(f"best: {best}; example stack: {results[best][0].artifacts['layers']}")

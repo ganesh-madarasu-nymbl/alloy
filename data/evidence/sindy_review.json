@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "description": "Primary-source review for the Lorenz demo. These papers motivate methods but do not yet provide an eligible scalar cross-paper reproduction pair. Keep synthetic scenarios separate.",
+  "sources": [
+    {
+      "paper_id": "arxiv:1509.03580",
+      "title": "Discovering governing equations from data: Sparse identification of nonlinear dynamical systems",
+      "source_url": "https://arxiv.org/html/1509.03580",
+      "locator": "Section 4.2; Figures 4\u20136; Table 4",
+      "quote": "to investigate the effect of noisy derivatives.",
+      "evidence_type": "full_text",
+      "review_status": "primary_text_reviewed",
+      "reviewed_on": "2026-10-21",
+      "stated_conditions": {
+        "system": "lorenz",
+        "polynomial_degree": 5,
+        "noise_location": "derivative targets",
+        "noise_distribution": "zero-mean Gaussian",
+        "noise_definition": "eta is variance",
+        "table_4_noise_variance": 1
+      },
+      "outcome_summary": "Table 4 reports fitted coefficients; figures compare reconstructions under derivative noise. These are not the adapter's aggregate coefficient-error measurement.",
+      "method_family": "sindy",
+      "exact_implementation_match": false,
+      "reproduction_eligible": false,
+      "blockers": [
+        "The adapter adds state noise; this example adds derivative noise.",
+        "The published feature library has degree five; the adapter uses degree two.",
+        "Individual published coefficients cannot be treated as aggregate coefficient error.",
+        "Sampling, derivative, threshold and training settings need an exact reproduction specification."
+      ]
+    },
+    {
+      "paper_id": "arxiv:2111.10992",
+      "title": "Ensemble-SINDy: Robust sparse model discovery in the low-data, high-noise limit, with active learning and control",
+      "source_url": "https://arxiv.org/html/2111.10992",
+      "locator": "Appendix A; Figure 7",
+      "quote": "The number of models in the ensemble is set to",
+      "evidence_type": "full_text",
+      "review_status": "primary_text_reviewed",
+      "reviewed_on": "2026-10-21",
+      "stated_conditions": {
+        "system": "lorenz",
+        "initial_condition": [
+          -8,
+          7,
+          27
+        ],
+        "noise_location": "state observations",
+        "noise_distribution": "zero-mean Gaussian white noise",
+        "noise_definition": "Noise is normalized using trajectory RMS; this is not automatically absolute state standard deviation.",
+        "threshold": 0.2,
+        "ensemble_models": 100,
+        "noise_realizations": 1000,
+        "bagging_inclusion_threshold": 0.6,
+        "library_bagging_inclusion_threshold": 0.4,
+        "library_bagging_fraction": 0.6
+      },
+      "outcome_summary": "Figure 7 compares coefficient error and structure recovery across noise and data length. No scalar curve value has been transcribed into an executable claim.",
+      "method_family": "ensemble-sindy",
+      "exact_implementation_match": false,
+      "reproduction_eligible": false,
+      "blockers": [
+        "The adapter uses 20 ensemble models rather than 100.",
+        "Published noise normalization needs an explicit conversion.",
+        "Bagging variants and inclusion thresholds do not map exactly to the current adapter.",
+        "A scalar outcome, derivative construction and aggregation remain unverified.",
+        "Published training start (-8, 7, 27) differs from the adapter fixed start (-8, 8, 27).",
+        "Published noise normalization differs from the adapter per-state standard-deviation scaling."
+      ]
+    },
+    {
+      "paper_id": "arxiv:2201.12683",
+      "title": "A Priori Denoising Strategies for Sparse Identification of Nonlinear Dynamical Systems: A Comparative Study",
+      "source_url": "https://arxiv.org/pdf/2201.12683",
+      "locator": "Sections 5 and 5.1, PDF pages 14\u201316; Figures 4\u201310; Table 2 on PDF page 24",
+      "quote": "We repeated the process for four different noise levels",
+      "evidence_type": "full_text",
+      "review_status": "primary_text_reviewed",
+      "reviewed_on": "2026-10-21",
+      "stated_conditions": {
+        "system": "lorenz",
+        "initial_condition": [
+          -8,
+          7,
+          27
+        ],
+        "dt": 0.01,
+        "trajectory_interval": [
+          0,
+          2.2
+        ],
+        "trajectory_samples": 221,
+        "retained_training_samples": 201,
+        "boundary_handling": "5 percent extension on either side of the intended interval for derivative estimation",
+        "polynomial_degree": 3,
+        "noise_location": "state observations",
+        "noise_distribution": "independent zero-mean Gaussian",
+        "noise_standard_deviations": [
+          0.001,
+          0.01,
+          0.1,
+          1
+        ],
+        "noise_realizations": 100
+      },
+      "outcome_summary": "The study compares smoothers with STLS and WBPDN. Its explicit Table 2 forecast numbers use l1-trend filtering and WBPDN, which the current adapter does not support.",
+      "method_family": "smoothed-sindy",
+      "exact_implementation_match": false,
+      "reproduction_eligible": false,
+      "blockers": [
+        "The exact smoother and parameter-selection procedure are not represented by a generic smoothed-sindy label.",
+        "The feature library has degree three rather than two.",
+        "Table 2 values belong to unsupported WBPDN, not the adapter's STLS.",
+        "STLS coefficient-error figures require careful scalar extraction; unstable forecast realizations were excluded from some aggregation.",
+        "Published training start (-8, 7, 27) differs from the adapter fixed start (-8, 8, 27).",
+        "Published noise normalization differs from the adapter per-state standard-deviation scaling."
+      ]
+    }
+  ],
+  "claims": [],
+  "claim_sources": {}
+}

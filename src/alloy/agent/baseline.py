@@ -7,7 +7,6 @@ Alloy, but no evidence graph, no Condition Check and no method search. bench.py 
 import json
 from pathlib import Path
 
-from anthropic import beta_tool
 from pydantic import BaseModel
 
 from alloy import llm
@@ -35,14 +34,16 @@ class BaselineResult(BaseModel):
 
 
 def _claims_text(claims: list[Claim]) -> str:
+    """Give the baseline every claim field, preserving units, zero values and provenance."""
     return "\n".join(
-        f"- {c.title} ({c.paper}): {c.method} {c.outcome or c.value} on {c.quantity}; "
-        f"conditions {json.dumps(c.conditions)}"
+        "- " + json.dumps(c.model_dump(), ensure_ascii=False, sort_keys=True)
         for c in claims
     )
 
 
 def run_baseline(goal: Goal, claims: list[Claim], run_dir: Path) -> BaselineResult:
+    from anthropic import beta_tool
+
     adapter = get_adapter(goal.adapter)
     runner = Runner(Budget(**goal.budget.model_dump()), run_dir)
     submitted: dict = {}

@@ -1,6 +1,7 @@
 """The six-stage investigation: search, understand, investigate, improve, verify, remember."""
 
 from datetime import datetime
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +37,7 @@ class Investigation(BaseModel):
     skipped: list[str] = Field(default_factory=list)  # conflicts set aside, with the reason
     hard_conditions: dict[str, Any] = Field(default_factory=dict)
     candidates: list[dict[str, Any]] = Field(default_factory=list)
-    comparison: dict[str, dict[str, float]] = Field(default_factory=dict)  # method -> mean, worst
+    comparison: dict[str, dict[str, float | None]] = Field(default_factory=dict)  # adaptive counts/drop markers
     challenge: dict[str, Any] = Field(default_factory=dict)
     verdict: Verdict | None = None
     referee: list[str] = Field(default_factory=list)
@@ -71,7 +72,10 @@ def _hidden_search(inv, runner, at, good_setting, good, bad, adapter) -> Investi
             )
     if not inv.hidden_search:
         return _stop(inv, "the stated conditions match and the adapter has no unstated settings to try")
-    hit = min(inv.hidden_search, key=lambda h: h["miss"])
+    valid = [h for h in inv.hidden_search if isfinite(h["coef_error"]) and isfinite(h["miss"])]
+    if not valid:
+        return _stop(inv, "no finite successful simulation supports an unstated-setting hypothesis")
+    hit = min(valid, key=lambda h: h["miss"])
     if hit["miss"] > MATCH_TOL:
         return _stop(inv, f"no single unstated setting reproduces {bad.id}'s reported {bad.value}")
 
@@ -99,14 +103,16 @@ def investigate(
     run_root: Path | None = None,
     memory_dir: Path | None = None,
     referee: bool = False,
+    *,
+    output_dir: Path | None = None,
 ) -> Investigation:
-    inv = Investigation(id=datetime.now().strftime("%Y%m%d-%H%M%S-%f"), goal=goal)
-    run_dir = Path(run_root or settings.run_dir) / inv.id
+    inv = Investigation(id=datetime.now().strftime("%Y%m%d-%H%M%S-%f"), goal=goal, claims=list(claims or []))
+    run_dir = Path(output_dir) if output_dir is not None else Path(run_root or settings.run_dir) / inv.id
     runner = Runner(goal.budget, run_dir)
-    adapter = get_adapter(goal.adapter)
     deadends = DeadEndMap(Path(memory_dir or settings.memory_dir) / "deadends.jsonl")
 
     try:
+        adapter = get_adapter(goal.adapter)
         _run(inv, offline, claims or [], seed_claims, runner, adapter, deadends, run_dir)
         if referee and not offline and inv.verdict:
             from alloy.agent.referee import review
@@ -144,7 +150,9 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
         unrunnable = (report.shared | {k: v[0] for k, v in report.differing.items()}).keys() - set(
             adapter.condition_keys
         )
-        if a.method not in adapter.methods:
+        if issue := conditions.measurement_issue(a) or conditions.measurement_issue(b):
+            inv.skipped.append(f"{a.id}/{b.id}: {issue}")
+        elif a.method not in adapter.methods:
             inv.skipped.append(f"{a.id}/{b.id}: method {a.method} is not supported by {adapter.name}")
         elif not report.comparable:
             inv.skipped.append(f"{a.id}/{b.id}: not comparable ({'; '.join(report.notes)})")
@@ -212,6 +220,8 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
     tried = [a.method] + [c.method for c in found]
     specs = {m: hard.model_copy(deep=True, update={"method": m}) for m in tried}
     inv.comparison, runs_by_method, best = compare.adaptive(runner, specs)
+    if not best:
+        return _stop(inv, "comparison has no finite, sufficiently sampled method; no winner established")
     scores = {m: c["mean"] for m, c in inv.comparison.items()}
     close = [m for m, c in inv.comparison.items() if m != best and c["dropped_after"] is None]
 
