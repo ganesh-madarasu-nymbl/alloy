@@ -9,7 +9,7 @@ build/
 *.egg-info/
 
 # local outputs
-cache/
-runs/
-memory/
-exports/
+/cache/
+/runs/
+/memory/
+/exports/
