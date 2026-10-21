@@ -19,7 +19,28 @@ uv run pytest -q
 uv run streamlit run ui/app.py
 ```
 
-Offline mode reads `data/seed/lorenz_claims.json` and runs everything locally in a few seconds. For online mode, copy `.env.example` to `.env`, add the Valency MCP URL and token from the #valency setup guide, then run:
+Offline mode reads `data/seed/lorenz_claims.json` and runs everything locally in a few seconds.
+
+For Bond discovery using your existing Codex login, install the Valency plugin and complete
+`codex mcp login valency`. Copy `.env.example` to `.env` (preserve any existing settings), then run:
+
+```bash
+uv run alloy bond-check
+uv run alloy bond-search "sparse identification of nonlinear dynamics Lorenz noise" --limit 5
+```
+
+These two commands reuse Codex's OAuth storage through its installed app-server protocol.
+They do not copy tokens or start a model turn. Discovery requires a local Codex version
+supporting MCP tool calls through app-server. `bond-check` reports the available tools
+and authentication/runtime status; a successful `bond-search` verifies a real tool call.
+The search caches raw results and metadata/abstracts in `cache/`; abstracts are not full-text
+evidence of a disagreement. Missing passages stay missing. Runtime, network and sign-in
+failures exit with an error rather than substituting demo papers.
+
+For the full online investigation, also configure your Claude API access. With
+`ALLOY_BOND_BACKEND=codex`, Bond discovery uses Codex OAuth; claim extraction, method selection
+and the referee still use Claude API calls. The optional `ALLOY_BOND_BACKEND=claude` path
+uses the hosted Claude MCP connector and requires its own server authorization.
 
 ```bash
 uv run alloy check           # shows model and whether Bond is configured
@@ -30,7 +51,7 @@ uv run alloy demo --online --referee
 
 | Stage | What runs | Code |
 |---|---|---|
-| 1 Search | Bond search through the Claude MCP connector, cached to `cache/` | `knowledge/bond.py` |
+| 1 Search | Bond through Codex OAuth or the Claude MCP connector, cached to `cache/` | `knowledge/bond.py` |
 | 2 Understand | Claim extraction and the evidence graph | `knowledge/extract.py`, `knowledge/graph.py` |
 | 3 Investigate | Condition Check, then a rerun at each claim's conditions | `knowledge/conditions.py`, `agent/loop.py` |
 | 4 Improve | Method search, then a controlled comparison | `knowledge/methods.py`, `experiments/compare.py` |
@@ -92,7 +113,7 @@ Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Cl
 
 ## Open work
 
-- [ ] Get the Valency MCP URL and token, run the first Bond search, and cache the result
+- [ ] Verify the installed Codex OAuth bridge with a live Bond search and cache the result
 - [ ] Replace the seed placeholders with real Bond claims
 - [ ] `agent/baseline.py`: plain agent with the same tools and budget, for the experiments-saved count
 - [ ] `experiments/adapters/tmm_adapter.py`: cooling coatings (stretch)

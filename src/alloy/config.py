@@ -1,4 +1,5 @@
 import os
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,12 +19,15 @@ class Settings:
     model: str = field(default_factory=lambda: os.getenv("ALLOY_MODEL", "claude-opus-5-5"))
     valency_mcp_url: str = field(default_factory=lambda: os.getenv("VALENCY_MCP_URL", ""))
     valency_token: str = field(default_factory=lambda: os.getenv("VALENCY_TOKEN", ""))
+    bond_backend: str = field(default_factory=lambda: os.getenv("ALLOY_BOND_BACKEND", "claude"))
     cache_dir: Path = field(default_factory=lambda: _path("ALLOY_CACHE_DIR", "cache"))
     run_dir: Path = field(default_factory=lambda: _path("ALLOY_RUN_DIR", "runs"))
     memory_dir: Path = field(default_factory=lambda: _path("ALLOY_MEMORY_DIR", "memory"))
 
     @property
     def bond_configured(self) -> bool:
+        if self.bond_backend == "codex":
+            return shutil.which("codex") is not None
         return bool(self.valency_mcp_url)
 
 

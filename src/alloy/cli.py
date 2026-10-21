@@ -27,20 +27,41 @@ def main() -> None:
     )
 
     sub.add_parser("check", help="show configuration")
+    sub.add_parser("bond-check", help="discover Valency tools using saved Codex OAuth; no model call")
+    bond_search = sub.add_parser("bond-search", help="search Bond through Codex OAuth; no model call")
+    bond_search.add_argument("query")
+    bond_search.add_argument("--limit", type=int, default=5)
 
     args = parser.parse_args()
+    if args.command in {"bond-check", "bond-search"}:
+        from alloy.knowledge.bond import cache_mcp_result
+        from alloy.knowledge.codex_bond import BondConnectionError, inspect_connection, search_raw
+
+        try:
+            if args.command == "bond-check":
+                server = inspect_connection()
+                print(json.dumps({
+                    "server": server["name"], "auth_status": server.get("authStatus"),
+                    "runtime_status": server.get("runtimeStatus"), "tools": server["tools"],
+                }, indent=2))
+            else:
+                if not args.query.strip() or not 1 <= args.limit <= 100:
+                    parser.error("Provide a nonempty query and a limit from 1 to 100")
+                result = search_raw(args.query, args.limit)
+                path, papers = cache_mcp_result(args.query, args.limit, result)
+                print(json.dumps({"cache": str(path), "papers": [p.model_dump() for p in papers]}, indent=2))
+        except (BondConnectionError, OSError, ValueError) as exc:
+            parser.exit(1, f"Bond connection unverified: {exc}\n")
+        return
     if args.command == "check":
-        print(
-            json.dumps(
-                {
-                    "model": settings.model,
-                    "bond_configured": settings.bond_configured,
-                    "run_dir": str(settings.run_dir),
-                },
-                indent=2,
-            )
-        )
-    elif args.command == "bench":
+        print(json.dumps({
+            "model": settings.model,
+            "bond_backend": settings.bond_backend,
+            "bond_configured": settings.bond_configured,
+            "run_dir": str(settings.run_dir),
+        }, indent=2))
+        return
+    if args.command == "bench":
         run_bench(args.runs, args.scenario, args.alloy_only, args.repeat)
     else:
         run_demo(args)

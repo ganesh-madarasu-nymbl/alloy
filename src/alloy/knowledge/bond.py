@@ -30,15 +30,72 @@ together with the conditions they were measured under. Follow citations when tha
 papers that disagree with each other."""
 
 
-def _cache_path(query: str, k: int):
-    key = hashlib.sha1(f"{query}|{k}".encode()).hexdigest()[:16]
+def _cache_path(query: str, k: int, backend: str | None = None):
+    key = hashlib.sha1(f"{backend or settings.bond_backend}|{query}|{k}".encode()).hexdigest()[:16]
     return settings.cache_dir / f"bond_{key}.json"
 
 
+def papers_from_mcp(result: dict) -> list[Paper]:
+    """Normalize returned metadata/abstracts; never invent full-text passages."""
+    if result.get("isError"):
+        raise ValueError("Bond search failed; no papers were cached")
+    payload = result.get("structuredContent")
+    if payload is None:
+        for block in result.get("content", []):
+            if block.get("type") == "text":
+                try:
+                    payload = json.loads(block["text"])
+                    break
+                except (ValueError, KeyError):
+                    continue
+    if isinstance(payload, dict):
+        rows = next((payload[k] for k in ("papers", "results", "data") if isinstance(payload.get(k), list)), None)
+    else:
+        rows = payload
+    if not isinstance(rows, list):
+        raise ValueError("Unrecognized Bond result shape; inspect the raw response before using it")
+    papers = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ValueError("Unrecognized Bond paper record; no papers were cached")
+        identifier = row.get("doi") or row.get("id") or row.get("arxiv_id")
+        title = row.get("title")
+        if not isinstance(identifier, str) or not identifier or not isinstance(title, str) or not title:
+            raise ValueError("Bond paper is missing a usable identifier or title")
+        abstract = row.get("abstract")
+        papers.append(Paper(
+            id=identifier, title=title,
+            # Abstract-only discovery is insufficient to establish detailed experimental conditions.
+            passages=[abstract] if isinstance(abstract, str) and abstract.strip() else [],
+        ))
+    return papers
+
+
+def cache_mcp_result(query: str, k: int, result: dict):
+    papers = papers_from_mcp(result)
+    path = _cache_path(query, k, backend="codex")
+    path.with_suffix(".raw.json").write_text(json.dumps({
+        "backend": "codex", "server": "valency", "tool": "semantic_search_papers",
+        "query": query, "limit": k, "evidence": "metadata_and_abstracts", "result": result,
+    }, indent=2))
+    path.write_text(PaperList(papers=papers).model_dump_json(indent=2))
+    return path, papers
+
+
 def search(query: str, k: int = 8, use_cache: bool = True) -> list[Paper]:
+    if not query.strip() or not 1 <= k <= 100:
+        raise ValueError("Provide a nonempty research query and a limit from 1 to 100")
     path = _cache_path(query, k)
     if use_cache and path.exists():
         return PaperList.model_validate_json(path.read_text(encoding="utf-8")).papers
+    if settings.bond_backend == "codex":
+        from alloy.knowledge.codex_bond import search_raw
+
+        result = search_raw(query, k)
+        _, papers = cache_mcp_result(query, k, result)
+        return papers
+    if settings.bond_backend != "claude":
+        raise ValueError("ALLOY_BOND_BACKEND must be codex or claude")
     if not settings.bond_configured:
         raise RuntimeError("VALENCY_MCP_URL is not set; see .env.example")
 
