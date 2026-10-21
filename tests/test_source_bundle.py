@@ -17,11 +17,12 @@ def evidence():
             review_status="primary_text_reviewed", reviewed_on="2026-10-21",
             outcome_summary="Test fixture only", method_family="sindy",
             exact_implementation_match=True, reproduction_eligible=True,
-            stated_conditions={"system": "lorenz", "noise": value},
+            stated_conditions={"system": "lorenz", "noise": value, "noise_type": "gaussian",
+                               "dt": 0.002, "t_end": 10.0, "threshold": 0.1},
         ))
         claims.append(dict(
             id=f"c{i}", paper=paper, method="sindy", quantity="coef_error", value=value,
-            unit="dimensionless", conditions={"system": "lorenz", "noise": value}, quote=quote, source="manual",
+            unit="dimensionless", conditions=sources[-1]["stated_conditions"], quote=quote, source="manual",
         ))
     return dict(description="Synthetic validation fixture; not published evidence", sources=sources, claims=claims,
                 claim_sources={c["id"]: c["paper"] for c in claims})
@@ -60,6 +61,19 @@ def test_invalid_evidence_is_rejected(change):
     change(data)
     with pytest.raises(ValidationError):
         EvidenceBundle.model_validate(data)
+
+
+def test_known_source_settings_cannot_be_omitted_or_defaulted():
+    data = evidence()
+    data["claims"][0]["conditions"] = {"system": "lorenz"}
+    with pytest.raises(ValidationError):
+        EvidenceBundle.model_validate(data)
+    data = evidence()
+    for claim, source in zip(data["claims"], data["sources"], strict=True):
+        claim["conditions"] = source["stated_conditions"] = {"system": "lorenz", "noise": 0.1}
+    bundle = EvidenceBundle.model_validate(data)
+    assert not bundle.runnable_claims()
+    assert bundle.summary()["execution_gaps"]
 
 
 def test_empty_reviewed_bundle_cannot_silently_run_demo(monkeypatch):

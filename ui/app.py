@@ -97,6 +97,7 @@ with st.form("goal"):
         "Use Bond + Claude (API usage)", value=False,
         disabled=not settings.bond_configured or mode != "Synthetic demonstration",
     )
+    online = online and mode == "Synthetic demonstration"
     if online:
         st.caption("Online mode searches Bond instead of using seed claims; Claude API usage applies.")
     submitted = st.form_submit_button(

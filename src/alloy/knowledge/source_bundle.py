@@ -11,6 +11,29 @@ from alloy.knowledge.extract import number_in_quote
 from alloy.knowledge.graph import EvidenceGraph
 
 DEFAULT_BUNDLE = Path(__file__).resolve().parents[3] / "data/evidence/sindy_review.json"
+PYSINDY_METHODS = ("sindy", "smoothed-sindy", "ensemble-sindy", "smoothed-ensemble-sindy")
+PYSINDY_KEYS = ("system", "noise", "noise_type", "dt", "t_end", "threshold")
+
+
+def execution_issue(claim: Claim) -> str | None:
+    """Conservative profile for an exact literature reproduction with the current adapter."""
+    if issue := measurement_issue(claim):
+        return issue
+    if claim.method not in PYSINDY_METHODS or claim.conditions.get("system") != "lorenz":
+        return "method or system is unsupported by the current adapter"
+    if set(claim.conditions) != set(PYSINDY_KEYS):
+        return "exact reproduction needs every supported setting and no unsupported settings"
+    if not check(claim, claim, PYSINDY_KEYS).comparable:
+        return "conditions or measurement contain missing or nonfinite values"
+    if claim.conditions["noise_type"] not in {"gaussian", "outliers"}:
+        return "noise model is unsupported"
+    for key in ("noise", "dt", "t_end", "threshold"):
+        value = claim.conditions[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            return f"{key} must be a nonnegative number"
+        if key in {"dt", "t_end"} and value == 0:
+            return f"{key} must be positive"
+    return None
 
 
 class SourceEvidence(BaseModel):
@@ -74,8 +97,7 @@ class EvidenceBundle(BaseModel):
                 raise ValueError("synthetic claims cannot be published evidence")
             if claim.method != source.method_family:
                 raise ValueError("claim method differs from reviewed source")
-            if any(key not in source.stated_conditions or value != source.stated_conditions[key]
-                   for key, value in claim.conditions.items()):
+            if claim.conditions != source.stated_conditions:
                 raise ValueError("claim conditions must agree with reviewed source settings")
             if claim.value is not None and (not claim.unit or not number_in_quote(claim.value, quote)):
                 raise ValueError("numeric claim needs explicit units and literal support")
@@ -83,26 +105,22 @@ class EvidenceBundle(BaseModel):
 
     def runnable_claims(self) -> list[Claim]:
         sources = {s.paper_id: s for s in self.sources}
-        # This profile intentionally matches the current loop, not every possible scientific task.
-        supported = {"sindy", "smoothed-sindy", "ensemble-sindy", "smoothed-ensemble-sindy"}
-        keys = {"system", "noise", "noise_type", "dt", "t_end", "threshold"}
         return [c for c in self.claims if (
             sources[self.claim_sources[c.id]].reproduction_eligible
-            and c.method in supported and c.conditions.get("system") == "lorenz"
-            and set(c.conditions) <= keys and measurement_issue(c) is None
+            and execution_issue(c) is None
         )]
 
     def summary(self) -> dict:
         runnable = self.runnable_claims()
         graph = EvidenceGraph()
         graph.add_claims(runnable)
-        keys = ("system", "noise", "noise_type", "dt", "t_end", "threshold")
-        eligible_pair = any(a.paper != b.paper and check(a, b, keys).comparable for a, b in graph.conflicts())
+        eligible_pair = any(a.paper != b.paper and check(a, b, PYSINDY_KEYS).comparable for a, b in graph.conflicts())
         return {
             "sources": len(self.sources), "reviewed_claims": len(self.claims),
             "runnable_claims": len(runnable),
             "eligible_cross_paper_pair": eligible_pair,
             "blockers": {s.paper_id: s.blockers for s in self.sources if s.blockers},
+            "execution_gaps": {c.id: issue for c in self.claims if (issue := execution_issue(c))},
         }
 
 
