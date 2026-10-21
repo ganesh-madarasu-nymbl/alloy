@@ -20,7 +20,6 @@ from alloy.memory.deadend import DeadEndMap
 
 SEED_CLAIMS = Path(__file__).resolve().parents[3] / "data" / "seed" / "lorenz_claims.json"
 ABLATION_SEEDS = [0, 1, 2]
-COMPARE_SEEDS = [0, 1, 2, 3, 4]
 GAP = 0.2  # minimum mean-error gap that counts as a reproduced disagreement
 
 
@@ -210,14 +209,11 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
     inv.stage = "improve"
     found = methods.propose(key, a.method, adapter.methods, offline=offline)
     inv.candidates = [c.model_dump() for c in found]
-    scores: dict[str, float] = {}
-    runs_by_method = {}
-    for method in [a.method] + [c.method for c in found]:
-        mean, worst, runs = compare.evaluate(runner, hard.model_copy(update={"method": method}), COMPARE_SEEDS)
-        scores[method], runs_by_method[method] = mean, runs
-        inv.comparison[method] = {"mean": mean, "worst": worst, "stderr": compare.stderr(runs)}
-    best = compare.best_method(scores)
-    close = compare.too_close_to_call(inv.comparison, best) if best else []
+    tried = [a.method] + [c.method for c in found]
+    specs = {m: hard.model_copy(deep=True, update={"method": m}) for m in tried}
+    inv.comparison, runs_by_method, best = compare.adaptive(runner, specs)
+    scores = {m: c["mean"] for m, c in inv.comparison.items()}
+    close = [m for m, c in inv.comparison.items() if m != best and c["dropped_after"] is None]
 
     # 6 (as we go). Remember failed runs and methods that did not beat the baseline.
     for method, runs in runs_by_method.items():
@@ -249,7 +245,7 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
             f"({setting[good.id][key]} vs {setting[bad.id][key]})"
             + (f"; {', '.join(decoys)} also differ but explain little" if decoys else "")
             + f". Rerunning reproduces the gap (mean coef_error {good_err:.3f} vs {bad_err:.3f}). "
-            f"At the harder setting {best} has the lowest mean error over {len(COMPARE_SEEDS)} seeds "
+            f"At the harder setting {best} has the lowest mean error over {inv.comparison[best]['n']} seeds "
             f"({scores[best]:.3f} vs {scores[a.method]:.3f} for {a.method}) and won "
             f"{challenge.wins}/{len(challenge.cases)} unseen cases."
             + (f" {', '.join(close)} is within seed noise of {best}; treat them as tied." if close else "")
