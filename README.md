@@ -1,14 +1,21 @@
 # Alloy
 
-Alloy finds published results that disagree, reruns them to find the condition behind the gap, and tests whether combining existing methods beats each one. Ganesh and Santosh are building it for the OSI Hackathon Boston (October 2026), with the Valency Bond MCP as the literature source.
+Alloy audits answers about why published results disagree. An AI agent can find a likely cause in a handful of runs. Alloy checks that answer: it reruns each paper's setting, tests one condition at a time, compares methods on fixed seeds, tries cases neither paper covered, and writes a report a reviewer can rerun line by line. Ganesh and Santosh are building it for the OSI Hackathon Boston (October 2026), with the Valency Bond MCP as the literature source.
 
-A researcher gives Alloy a goal, a supported simulator and a compute budget. Alloy returns:
+A researcher gives Alloy a goal, a supported simulator and a compute budget. Alloy returns an `audit.md` with:
 
-- why the papers disagree, with the claims and conditions side by side
-- a reproduction of the gap
-- a controlled comparison of candidate methods under one budget
-- a check of the winner on cases it never saw
-- a notebook that reruns every experiment, plus a log of what failed
+- the claims, with the conflicts it set aside and why
+- a reproduction of each paper's result
+- the error each differing condition adds, or the unstated setting that reproduces the gap
+- a controlled comparison with standard errors, and a warning when two methods are tied
+- the winner's results on unseen cases
+- a replay notebook and a log of what failed
+
+`uv run alloy audit --scenario short_record` runs a plain Claude agent first, then has Alloy check its cause and method and adds a "second opinion" table to the report.
+
+## Why an auditor
+
+We first set out to show that Alloy finds good method combinations with fewer experiments than a plain agent. Our own benchmark says no: on five scenarios, Claude Sonnet 5.5 found every cause in 4 to 14 runs, against Alloy's 17 to 41 (details below). Speed is not where Alloy helps. It helps with trust: the agent's answer comes from a few lucky seeds and its prior knowledge, while Alloy's comes with controlled evidence you can replay. In the short_record audit, both named the same method, and Alloy added that the runner-up sits within seed noise of it.
 
 ## Quick start
 
@@ -35,7 +42,7 @@ uv run alloy demo --online --referee
 | 3 Investigate | Condition Check, then a rerun at each claim's conditions | `knowledge/conditions.py`, `agent/loop.py` |
 | 4 Improve | Method search, then a controlled comparison | `knowledge/methods.py`, `experiments/compare.py` |
 | 5 Verify | MirageLab: unseen start points and noise levels | `experiments/verify.py` |
-| 6 Remember | Dead-End Map and the replay notebook | `memory/deadend.py`, `experiments/export.py` |
+| 6 Remember | Dead-End Map, replay notebook and audit report | `memory/deadend.py`, `experiments/export.py`, `experiments/report.py` |
 
 `agent/loop.py` wires the stages together. `agent/referee.py` argues against the final verdict.
 

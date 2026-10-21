@@ -26,6 +26,10 @@ def main() -> None:
         "--repeat", type=int, default=1, help="plain-agent runs per scenario (Alloy offline is deterministic)"
     )
 
+    audit = sub.add_parser("audit", help="run the plain agent, then have Alloy check its answer")
+    audit.add_argument("--scenario", required=True, help="scenario name from data/scenarios")
+    audit.add_argument("--runs", type=int, default=60)
+
     sub.add_parser("check", help="show configuration")
 
     args = parser.parse_args()
@@ -40,6 +44,8 @@ def main() -> None:
                 indent=2,
             )
         )
+    elif args.command == "audit":
+        run_audit(args.scenario, args.runs)
     elif args.command == "bench":
         run_bench(args.runs, args.scenario, args.alloy_only, args.repeat)
     else:
@@ -114,3 +120,35 @@ def run_bench(runs: int, names: list[str] | None, alloy_only: bool, repeat: int 
         )
     record = {"model": settings.model, "repeat": repeat, "scores": [s.model_dump() for s in scores]}
     (settings.run_dir / "bench.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+
+
+def run_audit(name: str, runs: int) -> None:
+    from alloy import bench
+    from alloy.agent.baseline import run_baseline
+    from alloy.agent.loop import investigate
+    from alloy.experiments import compare, report
+
+    scenario = bench.load_scenarios([name])[0]
+    goal = Goal(question=scenario.question, budget=Budget(runs=runs, minutes=10))
+    inv = investigate(goal, offline=True, claims=scenario.claims)
+    run_dir = settings.run_dir / inv.id
+    agent = run_baseline(goal, scenario.claims, run_dir / "agent")
+
+    alloy_cause = inv.verdict.deciding_conditions[0] if inv.verdict and inv.verdict.deciding_conditions else None
+    alloy_method = inv.verdict.best_method if inv.verdict else None
+    tied = compare.too_close_to_call(inv.comparison, alloy_method) if alloy_method else []
+    second = {
+        "agent_cause": agent.deciding_condition,
+        "agent_method": agent.method,
+        "agent_reason": agent.reason,
+        "agent_runs": agent.runs_used,
+        "alloy_cause": alloy_cause,
+        "alloy_method": alloy_method or "no method question",
+        "cause_agrees": agent.deciding_condition == alloy_cause,
+        "method_agrees": alloy_method is None or agent.method in [alloy_method, *tied],
+    }
+    path = report.write(inv, run_dir, second)
+    print(f"agent: cause {agent.deciding_condition}, method {agent.method}, {agent.runs_used} runs")
+    print(f"alloy: cause {alloy_cause}, method {alloy_method}, {inv.runs_used} runs")
+    print(f"cause agrees: {second['cause_agrees']}, method agrees: {second['method_agrees']}")
+    print(f"audit report: {path}")

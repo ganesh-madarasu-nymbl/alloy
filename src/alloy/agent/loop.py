@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from alloy.config import settings
 from alloy.contracts import Claim, ExperimentSpec, Goal, Verdict
 from alloy.experiments import compare, verify
+from alloy.experiments import report as audit_report
 from alloy.experiments.adapters import get_adapter
 from alloy.experiments.export import to_notebook
 from alloy.experiments.runner import Runner
@@ -118,6 +119,7 @@ def investigate(
         if runner.results:
             inv.notebook = str(to_notebook(goal.question, runner.results, run_dir / "replay.ipynb"))
         (run_dir / "investigation.json").write_text(inv.model_dump_json(indent=2), encoding="utf-8")
+        audit_report.write(inv, run_dir)
     return inv
 
 
