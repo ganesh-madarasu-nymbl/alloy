@@ -15,10 +15,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "scipy>=1.11",
     "streamlit>=1.35",
+    "tmm>=0.2",
 ]
-
-[project.optional-dependencies]
-coatings = ["tmm>=0.2"]
 
 [project.scripts]
 alloy = "alloy.cli:main"

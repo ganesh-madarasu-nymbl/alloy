@@ -3,8 +3,9 @@ from alloy.experiments.adapters import get_adapter
 
 
 def run(method, noise, seed=0):
-    spec = ExperimentSpec(task="equations-from-data", adapter="pysindy", method=method,
-                          conditions={"noise": noise}, seed=seed)
+    spec = ExperimentSpec(
+        task="equations-from-data", adapter="pysindy", method=method, conditions={"noise": noise}, seed=seed
+    )
     metrics, _ = get_adapter("pysindy").run(spec)
     return metrics
 
