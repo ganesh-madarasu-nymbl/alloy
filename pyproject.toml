@@ -15,16 +15,14 @@ dependencies = [
     "python-dotenv>=1.0",
     "scipy>=1.11",
     "streamlit>=1.35",
+    "tmm>=0.2",
 ]
-
-[project.optional-dependencies]
-coatings = ["tmm>=0.2"]
 
 [project.scripts]
 alloy = "alloy.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8.0", "ruff>=0.5"]
+dev = ["ipykernel>=6.29", "nbconvert>=7.16", "pytest>=8.0", "ruff>=0.5"]
 
 [build-system]
 requires = ["hatchling"]

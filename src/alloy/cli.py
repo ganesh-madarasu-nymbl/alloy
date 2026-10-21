@@ -32,6 +32,11 @@ def main() -> None:
     audit.add_argument("--scenario", required=True, help="scenario name from data/scenarios")
     audit.add_argument("--runs", type=int, default=60)
 
+    coat = sub.add_parser("coatings", help="compare radiative-cooling designs under thickness errors")
+    coat.add_argument("--layers", type=int, default=3)
+    coat.add_argument("--tolerance", type=float, default=30.0, help="thickness error std in nm")
+    coat.add_argument("--runs", type=int, default=30)
+
     sub.add_parser("check", help="show configuration")
     sub.add_parser("bond-check", help="discover Valency tools using saved Codex OAuth; no model call")
     bond_search = sub.add_parser("bond-search", help="search Bond through Codex OAuth; no model call")
@@ -96,6 +101,8 @@ def main() -> None:
         return
     if args.command == "audit":
         run_audit(args.scenario, args.runs)
+    elif args.command == "coatings":
+        run_coatings(args.layers, args.tolerance, args.runs)
     elif args.command == "bench":
         run_bench(args.runs, args.scenario, args.alloy_only, args.repeat)
     else:
@@ -215,3 +222,26 @@ def run_audit(name: str, runs: int) -> None:
     print(f"alloy: cause {alloy_cause}, method {alloy_method}, {inv.runs_used} runs")
     print(f"cause agrees: {second['cause_agrees']}, method agrees: {second['method_agrees']}")
     print(f"audit report: {path}")
+
+
+def run_coatings(layers: int, tolerance: float, runs: int) -> None:
+    from alloy.contracts import ExperimentSpec
+    from alloy.experiments import compare
+    from alloy.experiments.runner import Runner
+
+    conds = {"n_layers": layers, "thickness_tolerance_nm": tolerance}
+    specs = {
+        m: ExperimentSpec(task="cooling-coatings", adapter="tmm", method=m, conditions=conds)
+        for m in ("single-emitter", "random-search", "robust-search")
+    }
+    runner = Runner(Budget(runs=runs, minutes=10), settings.run_dir / "coatings")
+    comparison, results, best = compare.adaptive(runner, specs, metric="perturbed_cooling_error", max_seeds=6)
+    print(f"{layers} layers, thickness error std {tolerance} nm, {runner.runs_used} runs")
+    for method, s in comparison.items():
+        watts = [r.metrics["net_cooling_w_m2"] for r in results[method] if r.ok]
+        note = f"dropped after {s['dropped_after']} seeds" if s["dropped_after"] else ""
+        print(
+            f"  {method:15s} error under tolerance {s['mean']:.3f} +/- {s['stderr']:.3f}  "
+            f"nominal {sum(watts) / len(watts):.1f} W/m^2  {note}"
+        )
+    print(f"best: {best}; example stack: {results[best][0].artifacts['layers']}")

@@ -28,7 +28,7 @@ def register(adapter: Adapter) -> Adapter:
 
 
 def get_adapter(name: str) -> Adapter:
-    if not _REGISTRY:
+    if name not in _REGISTRY:  # adapters register on import
         from alloy.experiments.adapters import pysindy_adapter, tmm_adapter  # noqa: F401
     try:
         return _REGISTRY[name]

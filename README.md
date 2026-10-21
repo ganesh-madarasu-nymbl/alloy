@@ -15,7 +15,7 @@ A researcher gives Alloy a goal, a supported simulator and a compute budget. All
 
 ## Why an auditor
 
-We first set out to show that Alloy finds good method combinations with fewer experiments than a plain agent. Our own benchmark says no: on five scenarios, Claude Sonnet 5.5 found every cause in 4 to 14 runs, against Alloy's 17 to 41 (details below). Speed is not where Alloy helps. It helps with trust: the agent's answer comes from a few lucky seeds and its prior knowledge, while Alloy's comes with controlled evidence you can replay. In the short_record audit, both named the same method, and Alloy added that the runner-up sits within seed noise of it.
+We first set out to show that Alloy finds good method combinations with fewer experiments than a plain agent. Our own benchmark says no: on five scenarios, Claude Sonnet 5.5 found every cause in 4 to 14 runs, against Alloy's 17 to 45 (details below). Speed is not where Alloy helps. It helps with trust: the agent's answer comes from a few lucky seeds and its prior knowledge, while Alloy's comes with controlled evidence you can replay. In the short_record audit, both named the same method, and Alloy added that the runner-up sits within seed noise of it.
 
 ## Quick start
 
@@ -81,6 +81,14 @@ uv run alloy check           # shows model and whether Bond is configured
 uv run alloy demo --online --referee
 ```
 
+To check a run replays exactly, execute its notebook:
+
+```bash
+uv run jupyter nbconvert --to notebook --execute runs/<id>/replay.ipynb --output executed.ipynb
+```
+
+On 21 Oct 2026 a demo run's 34 experiments replayed with identical metrics.
+
 ## The loop
 
 | Stage | What runs | Code |
@@ -101,6 +109,12 @@ The physics task recovers the Lorenz equations with PySINDy. The seed claims say
 The seed claims hold placeholder quotes. Keep them labeled as synthetic in a demo.
 Reviewed literature must pass the evidence-bundle checks before it can replace this input;
 retrieving a DOI or an abstract does not establish the reported number or its settings.
+
+## Second task: radiative cooling coatings
+
+`uv run alloy coatings --layers 3 --tolerance 30` compares three designs for a coating on a silver mirror: one SiO2 emitter, the best of 12 random TiO2/SiO2 stacks, and the same search scored under thickness errors. The adapter uses the transfer-matrix method (`tmm`) with approximate optical constants listed in `experiments/data/optics.py`. It omits silver's UV interband absorption, so it underestimates solar absorption. Swap in measured data before trusting a number.
+
+First run (3 layers, 30 nm thickness error): the single 1 um SiO2 layer cools 47 W/m^2 and loses the race after 2 seeds. Both searched stacks cool about 85 W/m^2 out of an ideal 148 W/m^2, and they tie under thickness errors (0.422 vs 0.426 cooling error, standard error about 0.01). A 30 nm error on micron-thick layers changes little. A sharper test needs thinner, resonant layers.
 
 ## Benchmark: Alloy vs a plain agent
 
@@ -125,11 +139,11 @@ No updated efficiency or superiority claim is established here; paid reruns were
 
 | Scenario | Alloy cause / answer / runs | Plain agent (Sonnet 5.5, n=5) cause / answer / mean runs |
 |---|---|---|
-| noise_simple | 1/1 / 1/1 / 32 | 5/5 / 5/5 / 4.0 |
-| noise_with_decoys | 1/1 / 1/1 / 41 | 5/5 / 5/5 / 4.4 |
-| short_record | 1/1 / 1/1 / 41 | 5/5 / 5/5 / 13.8 |
+| noise_simple | 1/1 / 1/1 / 34 | 5/5 / 5/5 / 4.0 |
+| noise_with_decoys | 1/1 / 1/1 / 43 | 5/5 / 5/5 / 4.4 |
+| short_record | 1/1 / 1/1 / 45 | 5/5 / 5/5 / 13.8 |
 | hidden_threshold | 1/1 / no method question / 17 | 5/5 / no method question / 12.4 |
-| many_papers | 1/1 / 0/1 / 36 | 5/5 / 0/5 / 7.4 |
+| many_papers | 1/1 / 0/1, flagged as a tie / 41 | 5/5 / 0/5 / 7.4 |
 
 An earlier single-run pass with Claude Opus 5.5 as the plain agent used 17 to 35 runs per scenario and once took the units trap in many_papers. Sonnet 5.5 never took the trap in 5 runs.
 
@@ -137,7 +151,7 @@ What the numbers say:
 
 - The plain agent matches Alloy on every cause and every answer, and uses 3 to 10 times fewer runs.
 - In noise_simple and noise_with_decoys, Sonnet named noise after about 4 runs without testing the decoy conditions. Its prior knowledge that noise breaks SINDy solves these scenarios. They test textbook knowledge more than investigation.
-- Both systems miss the many_papers answer the same way, because 5 seeds cannot separate smoothed-sindy from smoothed-ensemble-sindy.
+- Both systems miss the many_papers answer the same way. Alloy now races methods: it drops a method once it trails the leader by more than two combined standard errors and adds seeds to the rest, up to 9. After 9 seeds smoothed-sindy still leads (0.052 vs 0.066), so Alloy's verdict calls the two tied. The plain agent picks one without a warning.
 - On these scenarios the data do not support the claim that Alloy finds good combinations with fewer experiments.
 
 What would test the claim properly:
@@ -164,7 +178,7 @@ Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Cl
 - [ ] Verify the standalone Codex app-server bridge with a live Bond search
 - [ ] Find a reviewed eligible real-paper pair; preserve source/adapter mismatch evidence
 - [x] Baseline prompt includes every Claim field; historical results still need fair reruns
-- [ ] `experiments/adapters/tmm_adapter.py`: cooling coatings (stretch)
+- [x] `experiments/adapters/tmm_adapter.py`: cooling coatings (stretch)
 - [x] UI: condition differences, citation trail, saved records and failure history
 - [ ] Locked dependency install, complete simulation checks and browser walkthrough
 - [ ] Publish Ganesh's local integration branch through the authorized Work connection
