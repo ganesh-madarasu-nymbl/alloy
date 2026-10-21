@@ -6,7 +6,7 @@
       "paper_id": "arxiv:1509.03580",
       "title": "Discovering governing equations from data: Sparse identification of nonlinear dynamical systems",
       "source_url": "https://arxiv.org/html/1509.03580",
-      "locator": "Section 4.2; Figures 4–6; Table 4",
+      "locator": "Section 4.2; Figures 4\u20136; Table 4",
       "quote": "to investigate the effect of noisy derivatives.",
       "evidence_type": "full_text",
       "review_status": "primary_text_reviewed",
@@ -64,14 +64,16 @@
         "The adapter uses 20 ensemble models rather than 100.",
         "Published noise normalization needs an explicit conversion.",
         "Bagging variants and inclusion thresholds do not map exactly to the current adapter.",
-        "A scalar outcome, derivative construction and aggregation remain unverified."
+        "A scalar outcome, derivative construction and aggregation remain unverified.",
+        "Published training start (-8, 7, 27) differs from the adapter fixed start (-8, 8, 27).",
+        "Published noise normalization differs from the adapter per-state standard-deviation scaling."
       ]
     },
     {
       "paper_id": "arxiv:2201.12683",
       "title": "A Priori Denoising Strategies for Sparse Identification of Nonlinear Dynamical Systems: A Comparative Study",
       "source_url": "https://arxiv.org/pdf/2201.12683",
-      "locator": "Sections 5 and 5.1, PDF pages 14–16; Figures 4–10; Table 2 on PDF page 24",
+      "locator": "Sections 5 and 5.1, PDF pages 14\u201316; Figures 4\u201310; Table 2 on PDF page 24",
       "quote": "We repeated the process for four different noise levels",
       "evidence_type": "full_text",
       "review_status": "primary_text_reviewed",
@@ -110,7 +112,9 @@
         "The exact smoother and parameter-selection procedure are not represented by a generic smoothed-sindy label.",
         "The feature library has degree three rather than two.",
         "Table 2 values belong to unsupported WBPDN, not the adapter's STLS.",
-        "STLS coefficient-error figures require careful scalar extraction; unstable forecast realizations were excluded from some aggregation."
+        "STLS coefficient-error figures require careful scalar extraction; unstable forecast realizations were excluded from some aggregation.",
+        "Published training start (-8, 7, 27) differs from the adapter fixed start (-8, 8, 27).",
+        "Published noise normalization differs from the adapter per-state standard-deviation scaling."
       ]
     }
   ],
