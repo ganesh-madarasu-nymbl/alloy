@@ -73,59 +73,76 @@ def show_deadends():
 st.set_page_config(page_title="Alloy", layout="wide")
 st.title("Alloy")
 st.caption("Investigate differences between results, test improvements, and keep an inspectable evidence trail.")
-mode = st.selectbox("Evidence mode", ["Synthetic demonstration", "Reviewed literature", "Saved investigation"])
-bundle = load_bundle()
-eligible = bundle.summary()["eligible_cross_paper_pair"]
-if mode == "Reviewed literature":
-    show_reviewed_sources(bundle)
-    if not eligible:
-        st.warning("No eligible reviewed cross-paper pair yet. These sources cannot start a literature reproduction.")
-if mode == "Saved investigation":
-    st.info("Viewing a saved record does not run experiments or call a model. Its results are not reverified here.")
-    uploaded = st.file_uploader("Investigation JSON", type=["json"])
-    if uploaded is not None:
-        try:
-            st.session_state.inv = read_investigation(uploaded.getvalue())
-            st.session_state.saved_record = True
-        except ValueError:
-            st.session_state.pop("inv", None)
-            st.error("Invalid investigation record. Supply an Alloy investigation JSON smaller than 5 MB.")
+mode = st.selectbox("Evidence mode", ["Synthetic demonstration", "Reviewed literature", "Saved investigation",
+                                     "Collection campaign", "Saved campaign"])
+previous_mode = st.session_state.get("evidence_mode")
+if previous_mode is not None and previous_mode != mode:
+    if not (mode == "Saved investigation" and st.session_state.get("saved_record")):
+        st.session_state.pop("inv", None)
+    st.session_state.pop("campaign", None)
+st.session_state.evidence_mode = mode
+if mode in {"Collection campaign", "Saved campaign"}:
+    from alloy.ui.collection import show_collection
 
-with st.form("goal"):
-    question = st.text_area("Research goal", DEFAULT_QUESTION)
-    c1, c2, c3 = st.columns(3)
-    runs = c1.number_input("Run budget", 10, 500, 60)
-    minutes = c2.number_input("Time budget (min)", 1.0, 60.0, 5.0)
-    online = c3.toggle(
-        "Use Bond + Claude (API usage)", value=False,
-        disabled=not settings.bond_configured or mode != "Synthetic demonstration",
-    )
-    online = online and mode == "Synthetic demonstration"
-    if online:
-        st.caption("Online mode searches Bond instead of using seed claims; Claude API usage applies.")
-    submitted = st.form_submit_button(
-        "Investigate", disabled=mode == "Saved investigation" or (mode == "Reviewed literature" and not eligible),
-    )
+    child = show_collection(saved=mode == "Saved campaign")
+    if child is None:
+        st.stop()
+    st.session_state.inv = child
+    st.session_state.saved_record = True
+else:
+    bundle = load_bundle()
+    eligible = bundle.summary()["eligible_cross_paper_pair"]
+    if mode == "Reviewed literature":
+        show_reviewed_sources(bundle)
+        if not eligible:
+            st.warning("No eligible reviewed cross-paper pair yet. "
+                       "These sources cannot start a literature reproduction.")
+    if mode == "Saved investigation":
+        st.info("Viewing a saved record does not run experiments or call a model. Its results are not reverified here.")
+        uploaded = st.file_uploader("Investigation JSON", type=["json"])
+        if uploaded is not None:
+            try:
+                st.session_state.inv = read_investigation(uploaded.getvalue())
+                st.session_state.saved_record = True
+            except ValueError:
+                st.session_state.pop("inv", None)
+                st.error("Invalid investigation record. Supply an Alloy investigation JSON smaller than 5 MB.")
 
-if submitted:
-    st.session_state.pop("inv", None)
-    st.session_state.saved_record = False
-    with st.spinner("Investigating..."):
-        try:
-            claims = bundle.runnable_claims() if mode == "Reviewed literature" else None
-            # Never pass an empty literature list: the loop would use its synthetic fallback.
-            if mode == "Reviewed literature" and not claims:
-                raise ValueError("No reviewed runnable claims")
-            st.session_state.inv = investigate(
-                Goal(question=question, budget=Budget(runs=runs, minutes=minutes)),
-                offline=not online, referee=online, claims=claims,
-            )
-        except Exception:
-            st.error("Investigation stopped. Check dependencies, service configuration and the run budget.")
-            st.info(
-                "A partial investigation and run manifest may be saved under runs/. "
-                "Open its JSON in Saved investigation."
-            )
+    with st.form("goal"):
+        question = st.text_area("Research goal", DEFAULT_QUESTION)
+        c1, c2, c3 = st.columns(3)
+        runs = c1.number_input("Run budget", 10, 500, 60)
+        minutes = c2.number_input("Time budget (min)", 1.0, 60.0, 5.0)
+        online = c3.toggle(
+            "Use Bond + Claude (API usage)", value=False,
+            disabled=not settings.bond_configured or mode != "Synthetic demonstration",
+        )
+        online = online and mode == "Synthetic demonstration"
+        if online:
+            st.caption("Online mode searches Bond instead of using seed claims; Claude API usage applies.")
+        submitted = st.form_submit_button(
+            "Investigate", disabled=mode == "Saved investigation" or (mode == "Reviewed literature" and not eligible),
+        )
+
+    if submitted:
+        st.session_state.pop("inv", None)
+        st.session_state.saved_record = False
+        with st.spinner("Investigating..."):
+            try:
+                claims = bundle.runnable_claims() if mode == "Reviewed literature" else None
+                # Never pass an empty literature list: the loop would use its synthetic fallback.
+                if mode == "Reviewed literature" and not claims:
+                    raise ValueError("No reviewed runnable claims")
+                st.session_state.inv = investigate(
+                    Goal(question=question, budget=Budget(runs=runs, minutes=minutes)),
+                    offline=not online, referee=online, claims=claims,
+                )
+            except Exception:
+                st.error("Investigation stopped. Check dependencies, service configuration and the run budget.")
+                st.info(
+                    "A partial investigation and run manifest may be saved under runs/. "
+                    "Open its JSON in Saved investigation."
+                )
 
 inv = st.session_state.get("inv")
 if inv is None:
@@ -228,7 +245,7 @@ if inv.candidates:
         st.caption("Quote occurrence checks provenance only. A proposed combination still needs experimental testing.")
 
 show_deadends()
-notebook = local_notebook(inv.notebook, settings.run_dir)
+notebook = None if mode == "Saved campaign" else local_notebook(inv.notebook, settings.run_dir)
 if notebook:
     st.download_button("Download replay notebook", notebook, "replay.ipynb")
 elif inv.notebook:
