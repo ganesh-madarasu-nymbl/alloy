@@ -52,6 +52,12 @@ The physics task recovers the Lorenz equations with PySINDy. The seed claims say
 
 The seed claims hold placeholder quotes. Replace them with real Bond results before the demo, and check that the two DOIs say what the seed file says they do.
 
+## Second task: radiative cooling coatings
+
+`uv run alloy coatings --layers 3 --tolerance 30` compares three designs for a coating on a silver mirror: one SiO2 emitter, the best of 12 random TiO2/SiO2 stacks, and the same search scored under thickness errors. The adapter uses the transfer-matrix method (`tmm`) with approximate optical constants listed in `experiments/data/optics.py`. It omits silver's UV interband absorption, so it underestimates solar absorption. Swap in measured data before trusting a number.
+
+First run (3 layers, 30 nm thickness error): the single 1 um SiO2 layer cools 47 W/m^2 and loses the race after 2 seeds. Both searched stacks cool about 85 W/m^2 out of an ideal 148 W/m^2, and they tie under thickness errors (0.422 vs 0.426 cooling error, standard error about 0.01). A 30 nm error on micron-thick layers changes little. A sharper test needs thinner, resonant layers.
+
 ## Benchmark: Alloy vs a plain agent
 
 `uv run alloy bench` runs both systems on the scenarios in `data/scenarios/` with the same claims, simulator and 60-run budget. All scenarios are synthetic and say so in their files.
@@ -108,7 +114,7 @@ Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Cl
 - [ ] Get the Valency MCP URL and token, run the first Bond search, and cache the result
 - [ ] Replace the seed placeholders with real Bond claims
 - [ ] `agent/baseline.py`: plain agent with the same tools and budget, for the experiments-saved count
-- [ ] `experiments/adapters/tmm_adapter.py`: cooling coatings (stretch)
+- [x] `experiments/adapters/tmm_adapter.py`: cooling coatings (stretch)
 - [ ] UI: condition diff view and the citation trail
 - [ ] Record the backup demo video from cached runs
 
