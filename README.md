@@ -29,6 +29,31 @@ uv run streamlit run ui/app.py
 Offline mode reads synthetic claims in `data/seed/lorenz_claims.json` and runs locally.
 Their placeholder quotations are not evidence of a published disagreement.
 
+### Audit a collection under one budget
+
+```bash
+uv run alloy campaign --synthetic data/seed/collection_claims.json --plan-only
+uv run alloy campaign --synthetic data/seed/collection_claims.json --runs 60 --minutes 5
+uv run alloy campaign --evidence data/evidence/sindy_review.json --plan-only
+```
+
+The planner accepts at most 20 canonical works and 100 claims, screens every pair,
+and queues up to three discrepancies with visible ranking reasons. One run/time
+budget covers the entire queue. Failed simulations count; insufficient budgets
+leave pairs deferred, and uncertain accounting stops further launches. The current
+campaign supports Lorenz/PySINDy; coatings remains a separate command.
+
+Choose **Collection campaign** in the UI to preview the queue and run it, or
+**Saved campaign** to inspect an exported `campaign.json` without execution or
+reading uploaded paths. Campaign exports embed child investigations; transfer raw
+run folders separately for replay notebooks. Every conclusion applies to its own
+pair. Three selected audits can remain partial under 60 total runs.
+
+The implementation is committed locally; actual simulations, browser/replay checks
+and publication remain blocked in this session. The reviewed bundle has zero
+eligible pairs. See the [detailed implementation contract](docs/multi-paper-implementation.md)
+and [current acceptance ledger](docs/multi-paper-handoff.md).
+
 For Bond discovery using your existing Codex login, install the Valency plugin and complete
 `codex mcp login valency`. Copy `.env.example` to `.env` (preserve any existing settings), then run:
 
@@ -180,6 +205,7 @@ Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Cl
 - [x] Baseline prompt includes every Claim field; historical results still need fair reruns
 - [x] `experiments/adapters/tmm_adapter.py`: cooling coatings (stretch)
 - [x] UI: condition differences, citation trail, saved records and failure history
+- [x] Bounded collection planner, shared-budget campaign records and saved campaign UI
 - [ ] Locked dependency install, complete simulation checks and browser walkthrough
 - [ ] Publish Ganesh's local integration branch through the authorized Work connection
 - [ ] Record the backup demo video from cached runs

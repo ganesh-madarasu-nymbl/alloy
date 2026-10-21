@@ -1,5 +1,8 @@
 # Ganesh's first-lane handoff
 
+Historical first-lane snapshot. The [multi-paper handoff](multi-paper-handoff.md)
+supersedes its upstream revision, test counts and portable patch instructions.
+
 Updated October 21, 2026. Knowledge, UI and audit integration are implemented and
 committed locally. Full acceptance is still open: real-paper reproduction,
 simulation checks, browser interaction and publication remain unverified.

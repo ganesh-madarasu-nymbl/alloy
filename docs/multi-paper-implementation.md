@@ -51,6 +51,8 @@ input/retained/excluded counts; all screened PairPlans; ordered selected pair ID
 * Reject duplicate or empty claim IDs, invalid max_audits, and more than 100 input
   claims or 20 canonical works. Hard rejection is explicit; no silent truncation.
   Validate before generating the quadratic pair list (at most 4,950 pairs).
+* Reject nonfinite numbers, including nested condition values, before export can
+  convert NaN/Infinity into null and change screening on reload.
 * Normalize explicit DOI URLs/prefixes case-insensitively and arXiv abs/pdf URLs,
   arXiv prefixes and version suffixes. Do not guess DOI/arXiv cross-identities from
   titles. Unknown IDs retain their trimmed spelling and get an identity warning.
@@ -85,7 +87,7 @@ Paths in the summary are relative, informational and never dereferenced on uploa
 
 Campaign fields: kind='campaign', version=1, ID, Goal, CollectionPlan, audit entries,
 status, elapsed_seconds, runs_used and errors. Each entry stores pair ID, status,
-allocated cap, consumed count, relative directory, optional embedded Investigation
+allocated cap, consumed count, portable run-ID inventory, relative directory, optional embedded Investigation
 and error. Status is pending/running/complete/partial/failed/deferred. Complete
 means a recorded verdict and trustworthy run accounting, not scientific resolution.
 
@@ -135,7 +137,10 @@ the original disk. Select one child for the existing investigation viewer.
 Reject missing/duplicate/unknown pair or claim references, inconsistent selection,
 negative/nonfinite counts and malformed embedded child records. Forbid unknown
 campaign/planner fields. Download JSON/Markdown from validated objects. Existing
-notebook download remains restricted to the configured local run root. Clear stale
+single-investigation notebook download remains restricted to the configured local
+run root; saved campaigns do not dereference notebook paths. Validate positive
+verdicts against sampled reproduction, hidden-search or unseen-challenge records;
+saved measurements remain supplied evidence, not independent verification. Clear stale
 result state on mode changes so a prior result cannot masquerade as a new campaign.
 
 ## M7–M8 and ordered tasks

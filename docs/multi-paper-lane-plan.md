@@ -1,8 +1,10 @@
 # Finish the knowledge/UI lane: multi-paper audits
 
-Prepared October 21, 2026 under gods-plan. This is a bounded hackathon POC plan;
-implementation of these remaining waves has not started. It extends the approved
-first-lane plan and preserves its evidence, simulation and delivery requirements.
+Prepared October 21, 2026 under gods-plan. This is the historical planning snapshot
+for the bounded hackathon POC. Implementation has since proceeded under the
+[detailed contract](multi-paper-implementation.md); consult the
+[current acceptance ledger](multi-paper-handoff.md) for actual completion and blockers.
+The observations below describe the state when this plan was prepared.
 
 ## Desired result
 
