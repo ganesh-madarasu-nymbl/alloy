@@ -128,3 +128,67 @@ def test_tampered_plan_and_saved_references_rejected(monkeypatch, tmp_path):
 def test_invalid_budget_rejected(budget, tmp_path):
     with pytest.raises(ValueError):
         run_campaign(Goal(question="invalid", budget=budget), plan_collection([]), run_root=tmp_path)
+
+
+def test_saved_status_forgery_and_unknown_measurements_rejected(monkeypatch, tmp_path):
+    monkeypatch.setattr("alloy.agent.campaign.investigate", fake_child())
+    raw = run_campaign(goal(), plan_collection(claims3()), run_root=tmp_path).model_dump()
+    bad = json.loads(json.dumps(raw))
+    bad["accounting_complete"] = False
+    with pytest.raises(ValueError, match="complete campaign"):
+        read_campaign(json.dumps(bad).encode())
+    mutations = [
+        lambda inv: inv["verdict"].update(evidence=["UNKNOWN_RUN"]),
+        lambda inv: inv["reproduction"].update(UNKNOWN_CLAIM={"run_ids": []}),
+        lambda inv: inv["comparison"]["sindy"].update(n=-5),
+        lambda inv: inv["comparison"]["sindy"].update(mean=float("nan")),
+        lambda inv: inv["verdict"].update(status="resolved"),
+    ]
+    for mutate in mutations:
+        bad = json.loads(json.dumps(raw))
+        mutate(bad["audits"][0]["investigation"])
+        with pytest.raises(ValueError):
+            read_campaign(json.dumps(bad).encode())
+
+
+def test_positive_saved_verdict_requires_sampled_reproduction_and_actual_challenge(monkeypatch, tmp_path):
+    monkeypatch.setattr("alloy.agent.campaign.investigate", fake_child(20))
+    raw = run_campaign(goal(), plan_collection(claims3()), run_root=tmp_path).model_dump()
+    entry = raw["audits"][0]
+    inv, runs = entry["investigation"], entry["run_ids"]
+    inv["reproduction"] = {c["id"]: {"coef_error": .1 + i, "run_ids": runs[i * 3:(i + 1) * 3]}
+                           for i, c in enumerate(inv["claims"])}
+    inv["comparison"] = {"sindy": {"mean": .9, "n": 2}, "smoothed-sindy": {"mean": .1, "n": 2}}
+    inv["challenge"] = {"candidate": "smoothed-sindy", "baseline": "sindy", "passed": True, "wins": 3,
+                        "cases": [{"heldout_x0": [1, 1, i], "smoothed-sindy": .1, "sindy": .9,
+                                   "run_ids": runs[6 + 2 * i:8 + 2 * i]} for i in range(3)]}
+    inv["verdict"].update(status="resolved", best_method="smoothed-sindy")
+    assert read_campaign(json.dumps(raw).encode()).audits[0].investigation.verdict.status == "resolved"
+    mutations = [
+        lambda inv: inv["comparison"]["smoothed-sindy"].update(n=0),
+        lambda inv: inv["challenge"].update(cases=[], wins=0),
+        lambda inv: inv["challenge"]["cases"][0].update(sindy=.01),
+        lambda inv: inv["challenge"]["cases"][0].update(run_ids=runs[:2]),
+        lambda inv: inv["reproduction"][inv["claims"][1]["id"]].update(run_ids=runs[:3]),
+    ]
+    for mutate in mutations:
+        bad = json.loads(json.dumps(raw))
+        mutate(bad["audits"][0]["investigation"])
+        with pytest.raises(ValueError):
+            read_campaign(json.dumps(bad).encode())
+    inv["verdict"].update(status="likely_unstated_cause", best_method=None, deciding_conditions=["threshold"],
+                          evidence=[c["id"] for c in inv["claims"]] + runs[12:14])
+    inv["hidden_search"] = [{"condition": "threshold", "coef_error": .9, "miss": .1, "run_ids": runs[12:14]}]
+    assert read_campaign(json.dumps(raw).encode()).audits[0].investigation.verdict.status == "likely_unstated_cause"
+    inv["hidden_search"] = []
+    with pytest.raises(ValueError, match="hidden-search"):
+        read_campaign(json.dumps(raw).encode())
+
+
+def test_unknown_consumption_cannot_claim_complete_accounting(monkeypatch, tmp_path):
+    monkeypatch.setattr("alloy.agent.campaign.investigate", lambda *a, **k: None)
+    raw = run_campaign(goal(), plan_collection(claims3()), run_root=tmp_path).model_dump()
+    assert not raw["accounting_complete"]
+    raw.update(status="partial", accounting_complete=True)
+    with pytest.raises(ValueError, match="unknown audit consumption"):
+        read_campaign(json.dumps(raw).encode())

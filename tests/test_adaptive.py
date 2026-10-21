@@ -41,3 +41,32 @@ def test_adaptive_records_drop_counts_and_ties():
     assert compare.too_close_to_call(stats, best) == ["b"]
     with pytest.raises(ValueError):
         compare.adaptive(FakeRunner(20, {}), specs(), start=0)
+
+
+def test_nonfinite_hidden_search_cannot_support_positive_conclusion():
+    from types import SimpleNamespace
+
+    from alloy.agent.loop import Investigation, _hidden_search
+    from alloy.contracts import Claim, Goal
+
+    a = Claim(id="a", paper="synthetic:a", method="a", quantity="coef_error", value=.01)
+    b = a.model_copy(update={"id": "b", "value": .9})
+    inv = Investigation(id="nan-case", goal=Goal(question="finite evidence required"))
+    result = _hidden_search(inv, FakeRunner(4, {"a": float("nan")}), lambda c: specs()["a"], {}, a, b,
+                            SimpleNamespace(sweeps={"threshold": [.1]}))
+    assert result.verdict.status == "insufficient_evidence"
+    assert "finite" in result.verdict.explanation
+
+
+def test_coatings_caller_handles_empty_comparison_without_division_error(monkeypatch, tmp_path, capsys):
+    from dataclasses import replace
+
+    from alloy.cli import run_coatings
+    from alloy.config import settings
+
+    monkeypatch.setattr("alloy.cli.settings", replace(settings, run_dir=tmp_path))
+    monkeypatch.setattr("alloy.experiments.compare.adaptive", lambda *a, **k: (
+        {"single-emitter": {"mean": float("inf"), "stderr": float("inf"), "dropped_after": None}},
+        {"single-emitter": []}, None))
+    run_coatings(3, 30, 0)
+    assert "no best coating" in capsys.readouterr().out

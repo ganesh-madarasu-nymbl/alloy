@@ -5,7 +5,7 @@ import re
 from dataclasses import asdict
 from itertools import combinations
 from typing import Any, Literal
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -18,6 +18,13 @@ DEFAULTS = dict(system="lorenz", noise=0.0, noise_type="gaussian", dt=0.002, t_e
 
 def canonical_work(identifier: str) -> str:
     value = unquote(identifier.strip())
+    parsed = urlsplit(value)
+    if parsed.scheme.lower() in {"http", "https"}:
+        host = parsed.netloc.lower()
+        if host in {"doi.org", "dx.doi.org"}:
+            value = parsed.path.lstrip("/")
+        elif host in {"arxiv.org", "www.arxiv.org"}:
+            value = "https://arxiv.org" + parsed.path
     doi = re.fullmatch(r"(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/\S+)", value, re.I)
     if doi:
         return "doi:" + doi[1].lower()
@@ -107,6 +114,11 @@ def plan_collection(
         raise ValueError("max_audits must be from 1 to 3")
     if len(claims) > 100 or len({c.id for c in claims}) != len(claims) or any(not c.id.strip() for c in claims):
         raise ValueError("at most 100 claims with unique nonempty IDs")
+    # JSON would turn NaN/Infinity into null and change screening on a saved round trip.
+    try:
+        json.dumps([c.model_dump() for c in claims], allow_nan=False)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("collection input must be JSON-compatible with only finite numbers") from exc
     claims = sorted(claims, key=lambda c: c.id)
     works = {c.id: canonical_work(c.paper) for c in claims}
     if len(set(works.values())) > 20:
@@ -128,8 +140,11 @@ def plan_collection(
             p.disposition = "blocked_evidence"
             p.reasons = [f"{c.id}: {gaps[c.id]}" for c in (a, b) if gaps[c.id]]
         else:
-            p.gap = (abs(a.value - b.value) / max(abs(a.value), abs(b.value), 1e-9)
-                     if a.value is not None else float(a.outcome.strip().lower() != b.outcome.strip().lower()))
+            if a.value is not None:
+                scale = max(abs(a.value), abs(b.value), 1e-9)
+                p.gap = abs(a.value / scale - b.value / scale)
+            else:
+                p.gap = float(a.outcome.strip().lower() != b.outcome.strip().lower())
             p.disposition = "eligible" if p.gap > 0.25 else "no_detected_discrepancy"
             p.reasons = ["point-value screening heuristic; no statistical contradiction established"]
             if a.source == "seed" or b.source == "seed":

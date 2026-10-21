@@ -16,6 +16,8 @@ def claims3():
     ("https://doi.org/10.1234/ABC", "doi:10.1234/abc"),
     ("https://arxiv.org/pdf/1509.03580v2.pdf", "arXiv:1509.03580"),
     ("arxiv:math/0301001v3", "https://arxiv.org/abs/math/0301001"),
+    ("doi:10.1073/pnas.1517384113", "https://doi.org/10.1073/pnas.1517384113?utm_source=review#section"),
+    ("arxiv:1509.03580", "https://arxiv.org/abs/1509.03580v2?context=math"),
 ])
 def test_known_identity_aliases(a, b):
     assert canonical_work(a) == canonical_work(b)
@@ -50,7 +52,7 @@ def test_aliases_are_never_independent_evidence_and_ambiguous_ids_stay_visible()
     ("conditions", {"system": "lorenz", "noise": None}, "blocked_evidence"),
     ("conditions", {"system": "lorenz", "noise": .1, "madeup": 1}, "blocked_evidence"),
     ("conditions", {"system": "lorenz", "noise": -.1}, "blocked_evidence"),
-    ("value", float("nan"), "incompatible"), ("source", "manual", "blocked_evidence"),
+    ("source", "manual", "blocked_evidence"),
 ])
 def test_unsafe_pairs_never_selected(field, value, disposition):
     a, b, _ = claims3()
@@ -80,3 +82,22 @@ def test_saved_plan_references_cannot_be_changed():
     raw["pairs"][0]["claims"] = ["1", "missing"]
     with pytest.raises(ValueError):
         CollectionPlan.model_validate(raw)
+
+
+def test_finite_extreme_values_do_not_overflow_screening():
+    from alloy.knowledge.collection import CollectionPlan
+
+    a, b, _ = claims3()
+    a.value, b.value = 1e308, -1e308
+    plan = plan_collection([a, b])
+    assert plan.pairs[0].gap == 2
+    assert CollectionPlan.model_validate_json(plan.model_dump_json()) == plan
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf")])
+def test_nonfinite_input_rejected_before_lossy_json_export(value):
+    a, b, _ = claims3()
+    with pytest.raises(ValueError, match="finite"):
+        plan_collection([a, b.model_copy(update={"value": value})])
+    with pytest.raises(ValueError, match="finite"):
+        plan_collection([a, b.model_copy(update={"conditions": {"system": "lorenz", "noise": value}})])

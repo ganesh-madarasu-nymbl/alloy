@@ -13,6 +13,7 @@ def evaluate(
     """Run one spec over several seeds. Returns (mean, worst, results); failed runs score inf."""
     results = [runner.run(spec.model_copy(deep=True, update={"seed": s})) for s in seeds]
     scores = [r.metrics.get(metric, float("inf")) if r.ok else float("inf") for r in results]
+    scores = [s if isfinite(s) else float("inf") for s in scores]
     return mean(scores), max(scores), results
 
 

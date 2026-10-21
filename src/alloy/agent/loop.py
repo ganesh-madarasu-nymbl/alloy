@@ -1,6 +1,7 @@
 """The six-stage investigation: search, understand, investigate, improve, verify, remember."""
 
 from datetime import datetime
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -71,7 +72,10 @@ def _hidden_search(inv, runner, at, good_setting, good, bad, adapter) -> Investi
             )
     if not inv.hidden_search:
         return _stop(inv, "the stated conditions match and the adapter has no unstated settings to try")
-    hit = min(inv.hidden_search, key=lambda h: h["miss"])
+    valid = [h for h in inv.hidden_search if isfinite(h["coef_error"]) and isfinite(h["miss"])]
+    if not valid:
+        return _stop(inv, "no finite successful simulation supports an unstated-setting hypothesis")
+    hit = min(valid, key=lambda h: h["miss"])
     if hit["miss"] > MATCH_TOL:
         return _stop(inv, f"no single unstated setting reproduces {bad.id}'s reported {bad.value}")
 

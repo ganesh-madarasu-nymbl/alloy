@@ -137,6 +137,7 @@ def run_collection(args) -> None:
         return
     campaign = run_campaign(goal, plan)
     print(f"campaign {campaign.id}: {campaign.runs_used}/{goal.budget.runs} total runs; {campaign.status}")
+    print(f"selected audits: {len(campaign.audits)}; complete means recorded accounting, not scientific resolution")
     print(f"record: {settings.run_dir / campaign.id / 'campaign.json'}")
     print(f"report: {settings.run_dir / campaign.id / 'campaign.md'}")
 
@@ -271,10 +272,11 @@ def run_coatings(layers: int, tolerance: float, runs: int) -> None:
     print(f"{layers} layers, thickness error std {tolerance} nm, {runner.runs_used} runs")
     for method, s in comparison.items():
         watts = [r.metrics["net_cooling_w_m2"] for r in results[method] if r.ok]
+        nominal = f"{sum(watts) / len(watts):.1f} W/m^2" if watts else "unavailable"
         note = f"dropped after {s['dropped_after']} seeds" if s["dropped_after"] else ""
         print(
             f"  {method:15s} error under tolerance {s['mean']:.3f} +/- {s['stderr']:.3f}  "
-            f"nominal {sum(watts) / len(watts):.1f} W/m^2  {note}"
+            f"nominal {nominal}  {note}"
         )
     if best is None:
         print("No sufficiently sampled finite comparison; no best coating established.")
