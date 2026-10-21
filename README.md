@@ -33,6 +33,14 @@ uv run alloy check           # shows model and whether Bond is configured
 uv run alloy demo --online --referee
 ```
 
+To check a run replays exactly, execute its notebook:
+
+```bash
+uv run jupyter nbconvert --to notebook --execute runs/<id>/replay.ipynb --output executed.ipynb
+```
+
+On 21 Oct 2026 a demo run's 34 experiments replayed with identical metrics.
+
 ## The loop
 
 | Stage | What runs | Code |

@@ -22,7 +22,7 @@ dependencies = [
 alloy = "alloy.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8.0", "ruff>=0.5"]
+dev = ["ipykernel>=6.29", "nbconvert>=7.16", "pytest>=8.0", "ruff>=0.5"]
 
 [build-system]
 requires = ["hatchling"]
