@@ -1,14 +1,21 @@
 # Alloy
 
-Alloy finds published results that disagree, reruns them to find the condition behind the gap, and tests whether combining existing methods beats each one. Ganesh and Santosh are building it for the OSI Hackathon Boston (October 2026), with the Valency Bond MCP as the literature source.
+Alloy audits answers about why published results disagree. An AI agent can find a likely cause in a handful of runs. Alloy checks that answer: it reruns each paper's setting, tests one condition at a time, compares methods on fixed seeds, tries cases neither paper covered, and writes a report a reviewer can rerun line by line. Ganesh and Santosh are building it for the OSI Hackathon Boston (October 2026), with the Valency Bond MCP as the literature source.
 
-A researcher gives Alloy a goal, a supported simulator and a compute budget. Alloy returns:
+A researcher gives Alloy a goal, a supported simulator and a compute budget. Alloy returns an `audit.md` with:
 
-- why the papers disagree, with the claims and conditions side by side
-- a reproduction of the gap
-- a controlled comparison of candidate methods under one budget
-- a check of the winner on cases it never saw
-- a notebook that reruns every experiment, plus a log of what failed
+- the claims, with the conflicts it set aside and why
+- a reproduction of each paper's result
+- the error each differing condition adds, or the unstated setting that reproduces the gap
+- a controlled comparison with standard errors, and a warning when two methods are tied
+- the winner's results on unseen cases
+- a replay notebook and a log of what failed
+
+`uv run alloy audit --scenario short_record` runs a plain Claude agent first, then has Alloy check its cause and method and adds a "second opinion" table to the report.
+
+## Why an auditor
+
+We first set out to show that Alloy finds good method combinations with fewer experiments than a plain agent. Our own benchmark says no: on five scenarios, Claude Sonnet 5.5 found every cause in 4 to 14 runs, against Alloy's 17 to 41 (details below). Speed is not where Alloy helps. It helps with trust: the agent's answer comes from a few lucky seeds and its prior knowledge, while Alloy's comes with controlled evidence you can replay. In the short_record audit, both named the same method, and Alloy added that the runner-up sits within seed noise of it.
 
 ## Quick start
 
@@ -56,7 +63,7 @@ uv run alloy demo --online --referee
 | 3 Investigate | Condition Check, then a rerun at each claim's conditions | `knowledge/conditions.py`, `agent/loop.py` |
 | 4 Improve | Method search, then a controlled comparison | `knowledge/methods.py`, `experiments/compare.py` |
 | 5 Verify | MirageLab: unseen start points and noise levels | `experiments/verify.py` |
-| 6 Remember | Dead-End Map and the replay notebook | `memory/deadend.py`, `experiments/export.py` |
+| 6 Remember | Dead-End Map, replay notebook and audit report | `memory/deadend.py`, `experiments/export.py`, `experiments/report.py` |
 
 `agent/loop.py` wires the stages together. `agent/referee.py` argues against the final verdict.
 
@@ -80,24 +87,30 @@ The seed claims hold placeholder quotes. Replace them with real Bond results bef
 
 An oracle measures every method on 10 seeds that neither system sees. Each system scores on three things: whether it names the right cause, whether its recommended method is within 10% (or 0.02) of the oracle's best, and how many runs it used. Add `--alloy-only` to skip the plain agent and its API calls.
 
-Results on 21 Oct 2026 (plain agent: Claude Opus 5.5 at medium effort, one run per scenario unless noted):
+Results on 21 Oct 2026. Alloy runs once per scenario because its offline run is deterministic. The plain agent ran 5 times per scenario on Claude Sonnet 5.5 (`--repeat 5`, about 284k input and 46k output tokens in total).
 
-| Scenario | Alloy cause / answer / runs | Plain agent cause / answer / runs |
+| Scenario | Alloy cause / answer / runs | Plain agent (Sonnet 5.5, n=5) cause / answer / mean runs |
 |---|---|---|
-| noise_simple | correct / correct / 32 | correct / correct / 31 |
-| noise_with_decoys | correct / correct / 41 | correct / correct / 20 |
-| short_record | correct / correct / 41 | correct / correct / 28 |
-| hidden_threshold | correct / no method question / 17 | correct / no method question / 28 |
-| many_papers (3 agent runs) | correct / missed / 36 | correct in 2 of 3 / missed in 3 of 3 / 17 to 24 |
+| noise_simple | 1/1 / 1/1 / 32 | 5/5 / 5/5 / 4.0 |
+| noise_with_decoys | 1/1 / 1/1 / 41 | 5/5 / 5/5 / 4.4 |
+| short_record | 1/1 / 1/1 / 41 | 5/5 / 5/5 / 13.8 |
+| hidden_threshold | 1/1 / no method question / 17 | 5/5 / no method question / 12.4 |
+| many_papers | 1/1 / 0/1 / 36 | 5/5 / 0/5 / 7.4 |
+
+An earlier single-run pass with Claude Opus 5.5 as the plain agent used 17 to 35 runs per scenario and once took the units trap in many_papers. Sonnet 5.5 never took the trap in 5 runs.
 
 What the numbers say:
 
-- On small, clean tasks the plain agent matches Alloy and uses fewer runs.
-- Alloy found the unstated threshold in 17 runs; the plain agent needed 28.
-- In one of three many_papers runs, the plain agent chased the units trap (0.02 relative vs 2.0 percent) and blamed the time step. Alloy's Condition Check rules that pair out before running anything.
-- Both systems miss the many_papers answer the same way. On seeds 0 to 4, smoothed-sindy beats smoothed-ensemble-sindy (0.042 vs 0.075); on the oracle's seeds the order flips (0.083 vs 0.058). Five seeds cannot separate them. Alloy reports a tie when two methods fall within each other's standard error, but here they do not on its own seeds.
+- The plain agent matches Alloy on every cause and every answer, and uses 3 to 10 times fewer runs.
+- In noise_simple and noise_with_decoys, Sonnet named noise after about 4 runs without testing the decoy conditions. Its prior knowledge that noise breaks SINDy solves these scenarios. They test textbook knowledge more than investigation.
+- Both systems miss the many_papers answer the same way, because 5 seeds cannot separate smoothed-sindy from smoothed-ensemble-sindy.
+- On these scenarios the data do not support the claim that Alloy finds good combinations with fewer experiments.
 
-Next: run each scenario several times for both systems, scale many_papers to real Bond output, and replace the fixed 5-seed comparison with an adaptive one.
+What would test the claim properly:
+
+- Scenarios where the cause runs against textbook intuition, so prior knowledge misleads the agent.
+- Real papers from Bond, where conditions sit in prose and many claims do not line up.
+- An adaptive Alloy comparison that stops testing clear losers early and adds seeds only when two methods are close.
 
 ## Contracts
 
