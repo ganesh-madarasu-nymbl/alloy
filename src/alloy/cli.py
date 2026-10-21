@@ -1,5 +1,6 @@
 import argparse
 import json
+from pathlib import Path
 
 from alloy.config import settings
 from alloy.contracts import Budget, Goal
@@ -17,6 +18,7 @@ def main() -> None:
     demo.add_argument("--referee", action="store_true", help="run the referee agent (online only)")
     demo.add_argument("--runs", type=int, default=60)
     demo.add_argument("--minutes", type=float, default=5.0)
+    demo.add_argument("--evidence", type=Path, help="use a reviewed evidence bundle without paid extraction")
 
     bench = sub.add_parser("bench", help="score Alloy and the plain agent on the benchmark scenarios")
     bench.add_argument("--runs", type=int, default=60)
@@ -31,8 +33,35 @@ def main() -> None:
     bond_search = sub.add_parser("bond-search", help="search Bond through Codex OAuth; no model call")
     bond_search.add_argument("query")
     bond_search.add_argument("--limit", type=int, default=5)
+    bond_import = sub.add_parser("bond-import", help="cache a native MCP result without starting a subprocess")
+    bond_import.add_argument("result", type=Path)
+    bond_import.add_argument("--query", required=True)
+    bond_import.add_argument("--limit", type=int, default=5)
+    evidence = sub.add_parser("evidence-check", help="inspect reviewed sources and reproduction gaps")
+    evidence.add_argument("path", type=Path, nargs="?")
 
     args = parser.parse_args()
+    if args.command == "evidence-check":
+        from alloy.knowledge.source_bundle import DEFAULT_BUNDLE, load_bundle
+
+        try:
+            bundle = load_bundle(args.path or DEFAULT_BUNDLE)
+        except (OSError, ValueError) as exc:
+            parser.exit(1, f"Evidence bundle invalid: {exc}\n")
+        print(json.dumps(bundle.summary(), indent=2))
+        return
+    if args.command == "bond-import":
+        from alloy.knowledge.bond import cache_mcp_result
+
+        if not args.query.strip() or not 1 <= args.limit <= 100:
+            parser.error("Provide a nonempty query and a limit from 1 to 100")
+        try:
+            raw = json.loads(args.result.read_text(encoding="utf-8"))
+            path, papers = cache_mcp_result(args.query, args.limit, raw)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.exit(1, f"Bond result invalid: {exc}\n")
+        print(json.dumps({"cache": str(path), "papers": len(papers), "evidence": "metadata_and_abstracts"}))
+        return
     if args.command in {"bond-check", "bond-search"}:
         from alloy.knowledge.bond import cache_mcp_result
         from alloy.knowledge.codex_bond import BondConnectionError, inspect_connection, search_raw
@@ -70,8 +99,21 @@ def main() -> None:
 def run_demo(args) -> None:
     from alloy.agent.loop import investigate
 
+    claims = None
+    if args.evidence:
+        from alloy.knowledge.source_bundle import load_bundle
+
+        try:
+            bundle = load_bundle(args.evidence)
+        except (OSError, ValueError) as exc:
+            raise SystemExit(f"Evidence bundle invalid: {exc}") from exc
+        if not bundle.summary()["eligible_cross_paper_pair"]:
+            raise SystemExit("No eligible reviewed cross-paper pair. Run alloy evidence-check for reproduction gaps.")
+        if args.online or args.referee:
+            raise SystemExit("Use --evidence without --online/--referee for a replay without paid calls.")
+        claims = bundle.runnable_claims()
     goal = Goal(question=args.question, budget=Budget(runs=args.runs, minutes=args.minutes))
-    inv = investigate(goal, offline=not args.online, referee=args.referee)
+    inv = investigate(goal, offline=not args.online, referee=args.referee, claims=claims)
     print(f"investigation {inv.id}: {inv.runs_used} runs, stopped at stage '{inv.stage}'")
     if inv.attribution:
         print(

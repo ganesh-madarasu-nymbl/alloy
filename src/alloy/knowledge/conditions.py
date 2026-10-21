@@ -7,6 +7,16 @@ from typing import Any
 from alloy.contracts import Claim
 
 
+def measurement_issue(claim: Claim) -> str | None:
+    """The current investigation compares relative coefficient error, never runtime or percent."""
+    if claim.value is not None:
+        if claim.quantity != "coef_error" or claim.unit not in {"relative", "dimensionless"}:
+            return "numeric investigation requires coef_error in relative or dimensionless units"
+    elif claim.quantity != "equations_recovered" or not claim.outcome:
+        return "qualitative investigation requires an equations_recovered outcome"
+    return None
+
+
 @dataclass
 class ConditionReport:
     a: str
@@ -17,6 +27,7 @@ class ConditionReport:
     missing: list[str] = field(default_factory=list)  # stated by one claim only
     reproducible: list[str] = field(default_factory=list)  # differing keys an adapter can vary
     notes: list[str] = field(default_factory=list)
+    assessment: str = "investigable"
 
 
 def check(a: Claim, b: Claim, adapter_keys: tuple[str, ...] = ()) -> ConditionReport:
@@ -33,6 +44,9 @@ def check(a: Claim, b: Claim, adapter_keys: tuple[str, ...] = ()) -> ConditionRe
     if (a.value is not None or b.value is not None) and (not a.unit or not b.unit):
         report.comparable = False
         report.notes.append("numeric claims need explicit units (including dimensionless)")
+    if any(value is not None and not isfinite(value) for value in (a.value, b.value)):
+        report.comparable = False
+        report.notes.append("reported values must be finite")
 
     for key in sorted(set(a.conditions) | set(b.conditions)):
         values = (a.conditions.get(key), b.conditions.get(key))
@@ -56,12 +70,19 @@ def check(a: Claim, b: Claim, adapter_keys: tuple[str, ...] = ()) -> ConditionRe
     if report.missing:
         report.comparable = False
         report.notes.append("insufficient evidence: unstated conditions: " + ", ".join(report.missing))
-    if len(report.differing) > 1:
-        report.comparable = False
-        report.notes.append("multiple conditions differ; a controlled multi-variable study is required")
     report.reproducible = [k for k in report.differing if k in adapter_keys]
+    unsupported = set(report.differing) - set(adapter_keys)
+    if unsupported and adapter_keys:
+        report.comparable = False
+        report.notes.append("adapter cannot vary: " + ", ".join(sorted(unsupported)))
+    if len(report.reproducible) > 1:
+        report.notes.append("vary each setting in controlled runs; one-at-a-time attribution can miss interactions")
     if report.differing:
         report.notes.append("condition differences are hypotheses, not proof of the cause")
     if report.comparable and not report.differing:
         report.notes.append("no stated condition explains the gap; check unstated settings")
+        report.notes.append("simulation defaults for unstated settings are assumptions, not paper evidence")
+        report.assessment = "unstated_settings_hypothesis"
+    if not report.comparable:
+        report.assessment = "insufficient_evidence" if report.missing else "incompatible"
     return report

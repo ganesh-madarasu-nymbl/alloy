@@ -2,6 +2,7 @@
 
 import json
 import math
+import re
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -47,6 +48,14 @@ def _coerce(value: str):
     return number if number is not None else value
 
 
+def number_in_quote(value: float, quote: str) -> bool:
+    """Check literal numeric support, without inferring unit conversions or scientific truth."""
+    tokens = re.findall(
+        r"(?<![\w.,])[+-]?(?:\d+(?:,\d{3})*(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?![\w,]|\.\d)", quote,
+    )
+    return any(_number(token.replace(",", "")) == value for token in tokens)
+
+
 def extract_claims(paper: Paper, condition_keys: tuple[str, ...], start: int = 1) -> list[Claim]:
     if not paper.passages or not any(p.strip() for p in paper.passages):
         raise ValueError(f"{paper.id}: no source passages available for claim extraction")
@@ -62,6 +71,8 @@ def extract_claims(paper: Paper, condition_keys: tuple[str, ...], start: int = 1
             raise ValueError(f"{paper.id}: extracted quote is absent from supplied passages")
         if claim.value is not None and _number(claim.value) is None:
             raise ValueError(f"{paper.id}: claim value is not a finite number")
+        if claim.value is not None and not number_in_quote(_number(claim.value), claim.quote):
+            raise ValueError(f"{paper.id}: numeric value is absent from the supporting quote")
     return [
         Claim(
             id=f"c{start + i}",

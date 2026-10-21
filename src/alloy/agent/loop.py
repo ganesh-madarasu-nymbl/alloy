@@ -143,7 +143,9 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
         unrunnable = (report.shared | {k: v[0] for k, v in report.differing.items()}).keys() - set(
             adapter.condition_keys
         )
-        if a.method not in adapter.methods:
+        if issue := conditions.measurement_issue(a) or conditions.measurement_issue(b):
+            inv.skipped.append(f"{a.id}/{b.id}: {issue}")
+        elif a.method not in adapter.methods:
             inv.skipped.append(f"{a.id}/{b.id}: method {a.method} is not supported by {adapter.name}")
         elif not report.comparable:
             inv.skipped.append(f"{a.id}/{b.id}: not comparable ({'; '.join(report.notes)})")

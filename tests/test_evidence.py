@@ -22,13 +22,15 @@ def test_incomplete_or_incompatible_claims_are_blocked(seed_claims, changes):
     assert not conditions.check(a, b.model_copy(update=changes), ('noise',)).comparable
 
 
-def test_multiple_differences_cannot_be_attributed_to_noise(seed_claims):
+def test_multiple_differences_are_available_to_controlled_investigation(seed_claims):
     a, b = seed_claims
     a.conditions['dt'] = 0.01
     b.conditions['dt'] = 0.1
     report = conditions.check(a, b, ('noise', 'dt'))
-    assert not report.comparable
+    assert report.comparable
     assert set(report.differing) == {'noise', 'dt'}
+    assert set(report.reproducible) == {'noise', 'dt'}
+    assert any('interactions' in note for note in report.notes)
 
 
 @pytest.mark.parametrize('quote,value,valid', [
@@ -38,6 +40,7 @@ def test_multiple_differences_cannot_be_attributed_to_noise(seed_claims):
     ('', '0.2', False),
     ('Error is 0.2.', 'nan', False),
     ('Error is 0.2.', 'inf', False),
+    ('Error is 0.2.', '999', False),
 ])
 def test_extraction_requires_passage_and_finite_number(monkeypatch, quote, value, valid):
     paper = Paper(id='p', title='Paper', passages=['Error is 0.2.'])
@@ -58,6 +61,13 @@ def test_empty_passages_do_not_call_model(monkeypatch):
     with pytest.raises(ValueError):
         extract.extract_claims(Paper(id='p', title='Paper', passages=['  ']), ())
     parse.assert_not_called()
+
+
+def test_literal_number_check_does_not_match_part_of_thousands():
+    assert not extract.number_in_quote(1, "Only 1,000 measurements were used.")
+    assert extract.number_in_quote(1000, "Only 1,000 measurements were used.")
+    assert not extract.number_in_quote(1, "Only 1,5 measurements were used.")
+    assert extract.number_in_quote(0.002, "Error 2e-3.")
 
 
 def test_source_links_and_placeholder_labels(seed_claims):
