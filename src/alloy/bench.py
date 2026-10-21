@@ -86,3 +86,24 @@ def score(system: str, scenario: Scenario, truth: Oracle, cause: str | None, ans
         answer_oracle_error=truth.means.get(answer) if answer else None,
         runs_used=runs,
     )
+
+
+def aggregate(scores: list[Score]) -> list[dict[str, Any]]:
+    """One row per (scenario, system): correct counts out of n, and mean runs."""
+    groups: dict[tuple[str, str], list[Score]] = {}
+    for s in scores:
+        groups.setdefault((s.scenario, s.system), []).append(s)
+    rows = []
+    for (scenario, system), group in groups.items():
+        scored = [s.answer_correct for s in group if s.answer_correct is not None]
+        rows.append(
+            {
+                "scenario": scenario,
+                "system": system,
+                "n": len(group),
+                "cause_ok": sum(s.cause_correct for s in group),
+                "answer_ok": sum(scored) if scored else None,
+                "mean_runs": mean(s.runs_used for s in group),
+            }
+        )
+    return rows

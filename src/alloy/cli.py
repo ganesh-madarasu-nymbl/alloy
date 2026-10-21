@@ -22,6 +22,9 @@ def main() -> None:
     bench.add_argument("--runs", type=int, default=60)
     bench.add_argument("--scenario", action="append", help="limit to these scenario names")
     bench.add_argument("--alloy-only", action="store_true", help="skip the plain agent (no API calls)")
+    bench.add_argument(
+        "--repeat", type=int, default=1, help="plain-agent runs per scenario (Alloy offline is deterministic)"
+    )
 
     sub.add_parser("check", help="show configuration")
 
@@ -38,7 +41,7 @@ def main() -> None:
             )
         )
     elif args.command == "bench":
-        run_bench(args.runs, args.scenario, args.alloy_only)
+        run_bench(args.runs, args.scenario, args.alloy_only, args.repeat)
     else:
         run_demo(args)
 
@@ -63,7 +66,7 @@ def run_demo(args) -> None:
     print(f"\nreplay notebook: {inv.notebook}")
 
 
-def run_bench(runs: int, names: list[str] | None, alloy_only: bool) -> None:
+def run_bench(runs: int, names: list[str] | None, alloy_only: bool, repeat: int = 1) -> None:
     from alloy import bench
     from alloy.agent.loop import investigate
 
@@ -84,14 +87,16 @@ def run_bench(runs: int, names: list[str] | None, alloy_only: bool) -> None:
         if not alloy_only:
             from alloy.agent.baseline import run_baseline
 
-            base = run_baseline(goal, scenario.claims, settings.run_dir / inv.id / "baseline")
-            scores.append(
-                bench.score("plain-agent", scenario, truth, base.deciding_condition, base.method, base.runs_used)
-            )
-            print(
-                f"  plain agent: {base.input_tokens} in / {base.output_tokens} out tokens, "
-                f"{base.turns} turns. Reason: {base.reason}"
-            )
+            for i in range(repeat):
+                base = run_baseline(goal, scenario.claims, settings.run_dir / inv.id / f"baseline-{i}")
+                scores.append(
+                    bench.score("plain-agent", scenario, truth, base.deciding_condition, base.method, base.runs_used)
+                )
+                print(
+                    f"  plain agent {i + 1}/{repeat}: {base.input_tokens} in / {base.output_tokens} out tokens, "
+                    f"{base.turns} turns. Reason: {base.reason}",
+                    flush=True,
+                )
 
     print(f"\n{'scenario':20s} {'system':12s} {'cause':>14s} {'answer':>26s} {'oracle err':>10s} {'runs':>5s}")
     for s in scores:
@@ -100,6 +105,12 @@ def run_bench(runs: int, names: list[str] | None, alloy_only: bool) -> None:
         answer = f"{s.answer}{mark}"
         err = f"{s.answer_oracle_error:.3f}" if s.answer_oracle_error is not None else "-"
         print(f"{s.scenario:20s} {s.system:12s} {cause:>14s} {answer:>26s} {err:>10s} {s.runs_used:>5d}")
-    (settings.run_dir / "bench.json").write_text(
-        json.dumps([s.model_dump() for s in scores], indent=2), encoding="utf-8"
-    )
+    print(f"\n{'scenario':20s} {'system':12s} {'n':>3s} {'cause ok':>9s} {'answer ok':>10s} {'mean runs':>10s}")
+    for row in bench.aggregate(scores):
+        answer = "n/a" if row["answer_ok"] is None else f"{row['answer_ok']}/{row['n']}"
+        print(
+            f"{row['scenario']:20s} {row['system']:12s} {row['n']:>3d} {row['cause_ok']:>7d}/{row['n']} "
+            f"{answer:>10s} {row['mean_runs']:>10.1f}"
+        )
+    record = {"model": settings.model, "repeat": repeat, "scores": [s.model_dump() for s in scores]}
+    (settings.run_dir / "bench.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
