@@ -1,6 +1,9 @@
 # Finish Ganesh's first lane: knowledge and research UI
 
-Plan prepared on October 21, 2026. Status: planned; the implementation waves below have not been executed.
+Plan prepared and execution approved on October 21, 2026. Implementation is committed
+locally; acceptance remains partial. See `docs/first-lane-handoff.md` for current
+verification, source-review gaps and publication blockers. Starting evidence below
+describes the state before these waves.
 
 ## Outcome
 
@@ -129,7 +132,7 @@ Real-literature acceptance requires a reviewed eligible pair: distinct works, th
 ## Dependencies and scope controls
 
 - Sequence: wave 0 → wave 1 → wave 2 → wave 3 → wave 4 → wave 5. Saved synthetic UI fixtures can help build wave 4 earlier, but do not satisfy real-evidence acceptance.
-- Existing authorization covers planning, reversible local implementation, checks and focused commits within this lane. This request prepares the plan; it does not launch an unattended worker or claim that implementation has begun.
+- Existing authorization covers planning, reversible local implementation, checks and focused commits within this lane. The user's subsequent "get to work, go" approved executing these waves. Controller startup was attempted but failed on its state-directory permissions; execution continued directly in the current session.
 - For substantial unattended or context-crossing execution, translate these waves and acceptance checks into the installed gods-plan controller's validated contract and reuse existing authorization. Keep one lead and one authoritative task state. Do not launch a second controller from a worker.
 - No paid model/API fallback, credit purchases, merge, deployment, or new external communication is included. Cached replay and local simulation require no paid inference.
 - Shared contract additions and changes to Santosh-owned modules must be explicit integration changes with affected callers checked. Reuse his implementations rather than duplicating them.

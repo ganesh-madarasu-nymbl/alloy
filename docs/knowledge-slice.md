@@ -1,5 +1,9 @@
 # Knowledge evidence slice
 
+Historical slice: the single-variable restriction below was superseded by
+`docs/first-lane-plan.md` and `docs/first-lane-handoff.md`. The current loop supports
+multiple stated differences and treats unstated settings as hypotheses.
+
 Build on Santosh's scaffold (source commit `8cf25d0f23ee0e9be32cf75324222f44a23ad1a0`, updated with `01a7e65c84f546b465b86d3db7ca816ed56be7f0`).
 This bounded prototype uses the existing contracts and does not change experiment ownership.
 
