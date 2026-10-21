@@ -18,9 +18,15 @@ def main() -> None:
     demo.add_argument("--runs", type=int, default=60)
     demo.add_argument("--minutes", type=float, default=5.0)
 
+    versus = sub.add_parser("versus", help="Alloy vs a plain agent on the same claims and budget")
+    versus.add_argument("--runs", type=int, default=60)
+
     sub.add_parser("check", help="show configuration")
 
     args = parser.parse_args()
+    if args.command == "versus":
+        versus_baseline(args.runs)
+        return
     if args.command == "check":
         print(json.dumps({
             "model": settings.model,
@@ -41,3 +47,33 @@ def main() -> None:
     for line in inv.referee:
         print(f"  - {line}")
     print(f"\nreplay notebook: {inv.notebook}")
+
+
+def versus_baseline(runs: int) -> None:
+    from alloy.agent.baseline import run_baseline, runs_to_target
+    from alloy.agent.loop import investigate
+    from alloy.contracts import RunResult
+
+    goal = Goal(question=DEFAULT_QUESTION, budget=Budget(runs=runs, minutes=10))
+    inv = investigate(goal, offline=True)
+    if not inv.verdict or inv.verdict.status != "resolved":
+        print("Alloy did not resolve the question; nothing to compare against")
+        return
+
+    run_dir = settings.run_dir / inv.id
+    key = inv.verdict.deciding_conditions[0]
+    hard = max(inv.reproduction.values(), key=lambda r: r.metrics["coef_error"]).spec.conditions[key]
+    target = inv.comparison[inv.verdict.best_method][str(hard)]
+    alloy_runs = [RunResult(**r) for r in json.loads((run_dir / "manifest.json").read_text())]
+
+    print(f"target: coef_error <= {target:.3f} at {key}={hard}; budget {runs} runs\n")
+    base = run_baseline(goal, inv.claims, key, hard, target, run_dir / "baseline")
+    rows = [
+        ("Alloy", runs_to_target(alloy_runs, key, hard, target), inv.runs_used, inv.verdict.best_method),
+        ("Plain agent", base.runs_to_target, base.runs_used, base.submitted_method),
+    ]
+    print(f"{'':12s} {'runs to target':>15s} {'runs used':>10s}  answer")
+    for name, hit, used, answer in rows:
+        print(f"{name:12s} {hit if hit is not None else 'never':>15} {used:>10d}  {answer}")
+    print(f"\nplain agent reason: {base.submitted_reason}")
+    print(f"plain agent tokens: {base.input_tokens} in / {base.output_tokens} out over {base.turns} turns")
