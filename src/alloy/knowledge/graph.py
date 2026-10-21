@@ -51,11 +51,15 @@ class EvidenceGraph:
         return [n.removeprefix("method:") for n, d in self.g.nodes(data=True) if d["kind"] == "method"]
 
     def save(self, path: Path) -> Path:
-        Path(path).write_text(json.dumps(nx.node_link_data(self.g, edges="links"), indent=2, default=str))
+        Path(path).write_text(
+            json.dumps(nx.node_link_data(self.g, edges="links"), indent=2, default=str), encoding="utf-8"
+        )
         return Path(path)
 
     @classmethod
     def load(cls, path: Path) -> "EvidenceGraph":
         graph = cls()
-        graph.g = nx.node_link_graph(json.loads(Path(path).read_text()), directed=True, multigraph=True, edges="links")
+        graph.g = nx.node_link_graph(
+            json.loads(Path(path).read_text(encoding="utf-8")), directed=True, multigraph=True, edges="links"
+        )
         return graph

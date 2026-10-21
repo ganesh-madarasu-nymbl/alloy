@@ -1,0 +1,14 @@
+{
+  "name": "noise_simple",
+  "note": "SYNTHETIC benchmark scenario. Paper ids are placeholders, not real publications.",
+  "question": "Why do two SINDy results on the Lorenz system disagree, and which method works under the harder setting?",
+  "truth": {"deciding_condition": "noise"},
+  "claims": [
+    {"id": "c1", "paper": "synthetic-A", "title": "Synthetic paper A", "method": "sindy",
+     "quantity": "equations_recovered", "outcome": "recovers",
+     "conditions": {"system": "lorenz", "noise": 0.01}, "source": "seed"},
+    {"id": "c2", "paper": "synthetic-B", "title": "Synthetic paper B", "method": "sindy",
+     "quantity": "equations_recovered", "outcome": "fails",
+     "conditions": {"system": "lorenz", "noise": 0.2}, "source": "seed"}
+  ]
+}

@@ -1,16 +1,24 @@
 """MirageLab: challenge a winning method on cases it never saw before."""
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from alloy.contracts import ExperimentSpec, RunResult
 from alloy.experiments.runner import Runner
 
-# Start points and noise levels kept out of the comparison grid.
-UNSEEN_CASES = [
-    {"heldout_x0": (1.0, 1.0, 1.0), "noise": 0.15},
-    {"heldout_x0": (-10.0, -10.0, 30.0), "noise": 0.25},
-    {"heldout_x0": (3.0, 15.0, 10.0), "noise": 0.35},
-]
+UNSEEN_STARTS = [(1.0, 1.0, 1.0), (-10.0, -10.0, 30.0), (3.0, 15.0, 10.0)]
+SHIFTS = [0.75, 1.0, 1.25]  # nudge the deciding condition around the hard value
+
+
+def unseen_cases(key: str, hard_value: Any) -> list[dict]:
+    """New start points, with the deciding condition nudged when it is numeric."""
+    cases = []
+    for x0, shift in zip(UNSEEN_STARTS, SHIFTS, strict=True):
+        case: dict[str, Any] = {"heldout_x0": x0}
+        if isinstance(hard_value, int | float) and not isinstance(hard_value, bool):
+            case[key] = hard_value * shift
+        cases.append(case)
+    return cases
 
 
 @dataclass
@@ -30,8 +38,8 @@ def challenge(
     base: ExperimentSpec,
     candidate: str,
     baseline: str,
+    cases: list[dict],
     metric: str = "heldout_error",
-    cases: list[dict] = UNSEEN_CASES,
 ) -> Challenge:
     out = Challenge(candidate=candidate, baseline=baseline)
     for i, case in enumerate(cases):

@@ -1,13 +1,10 @@
-from alloy.agent.baseline import runs_to_target
-from alloy.contracts import ExperimentSpec, RunResult
+from alloy import bench
 
 
-def result(i, noise, err, ok=True):
-    spec = ExperimentSpec(task="t", adapter="pysindy", method="m", conditions={"noise": noise})
-    return RunResult(id=f"r{i}", spec=spec, metrics={"coef_error": err}, ok=ok)
-
-
-def test_runs_to_target_counts_first_hit_at_hard_condition():
-    runs = [result(1, 0.01, 0.0), result(2, 0.2, 0.9), result(3, 0.2, 0.3, ok=False), result(4, 0.2, 0.2)]
-    assert runs_to_target(runs, "noise", 0.2, target=0.3) == 4
-    assert runs_to_target(runs, "noise", 0.2, target=0.1) is None
+def test_score_checks_cause_and_answer_against_oracle():
+    scenario = bench.load_scenarios(["short_record"])[0]
+    truth = bench.Oracle(hard_conditions={}, means={"a": 0.1, "b": 0.5}, acceptable=["a"])
+    good = bench.score("x", scenario, truth, cause="t_end", answer="a", runs=10)
+    bad = bench.score("x", scenario, truth, cause="noise", answer="b", runs=10)
+    assert good.cause_correct and good.answer_correct and good.answer_oracle_error == 0.1
+    assert not bad.cause_correct and not bad.answer_correct

@@ -50,10 +50,14 @@ with left:
         st.subheader("Condition Check")
         st.json({k: inv.condition_report[k] for k in ("comparable", "shared", "differing", "notes")})
 with right:
-    st.subheader("Controlled comparison (coefficient error)")
+    if inv.attribution:
+        st.subheader("Which condition causes the gap")
+        st.bar_chart(pd.Series(inv.attribution, name="error added"))
+    st.subheader("Controlled comparison at the harder setting")
     if inv.comparison:
-        st.line_chart(pd.DataFrame(inv.comparison))
-        st.dataframe(pd.DataFrame(inv.comparison).round(3))
+        table = pd.DataFrame(inv.comparison).T.round(3)
+        st.bar_chart(table["mean"])
+        st.dataframe(table)
     if inv.challenge:
         st.subheader("MirageLab: unseen cases")
         st.dataframe(pd.DataFrame(inv.challenge["cases"]).drop(columns="run_ids"), hide_index=True)

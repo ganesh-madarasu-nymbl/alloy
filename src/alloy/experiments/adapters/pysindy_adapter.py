@@ -21,7 +21,8 @@ class PySINDyAdapter:
     name = "pysindy"
     task = "equations-from-data"
     methods = ("sindy", "smoothed-sindy", "ensemble-sindy", "smoothed-ensemble-sindy")
-    condition_keys = ("system", "noise", "dt", "t_end")
+    # threshold is a method setting, but papers report it like a condition and it changes results.
+    condition_keys = ("system", "noise", "noise_type", "dt", "t_end", "threshold")
 
     def _model(self, method: str, threshold: float, seed: int) -> ps.SINDy:
         if method not in self.methods:
@@ -45,9 +46,10 @@ class PySINDyAdapter:
         dt, t_end = float(cond.get("dt", 0.002)), float(cond.get("t_end", 10.0))
 
         _, x = lorenz.simulate(t_end=t_end, dt=dt)
-        x_noisy = lorenz.add_noise(x, float(cond.get("noise", 0.0)), rng)
+        x_noisy = lorenz.add_noise(x, float(cond.get("noise", 0.0)), rng, cond.get("noise_type", "gaussian"))
 
-        model = self._model(spec.method, float(spec.params.get("threshold", 0.1)), spec.seed)
+        threshold = float(cond.get("threshold", spec.params.get("threshold", 0.1)))
+        model = self._model(spec.method, threshold, spec.seed)
         model.fit(x_noisy, t=dt)
 
         names = model.get_feature_names()

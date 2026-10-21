@@ -1,0 +1,14 @@
+{
+  "name": "noise_with_decoys",
+  "note": "SYNTHETIC benchmark scenario. Three conditions differ; only noise causes the failure.",
+  "question": "Why do two SINDy results on the Lorenz system disagree, and which method works under the harder setting?",
+  "truth": {"deciding_condition": "noise"},
+  "claims": [
+    {"id": "c1", "paper": "synthetic-C", "title": "Synthetic paper C", "method": "sindy",
+     "quantity": "equations_recovered", "outcome": "recovers",
+     "conditions": {"system": "lorenz", "noise": 0.02, "dt": 0.002, "t_end": 10.0}, "source": "seed"},
+    {"id": "c2", "paper": "synthetic-D", "title": "Synthetic paper D", "method": "sindy",
+     "quantity": "equations_recovered", "outcome": "fails",
+     "conditions": {"system": "lorenz", "noise": 0.12, "dt": 0.004, "t_end": 8.0}, "source": "seed"}
+  ]
+}

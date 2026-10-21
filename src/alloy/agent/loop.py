@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from alloy.config import settings
-from alloy.contracts import Claim, ExperimentSpec, Goal, RunResult, Verdict
+from alloy.contracts import Claim, ExperimentSpec, Goal, Verdict
 from alloy.experiments import compare, verify
 from alloy.experiments.adapters import get_adapter
 from alloy.experiments.export import to_notebook
@@ -18,8 +18,9 @@ from alloy.knowledge.graph import EvidenceGraph
 from alloy.memory.deadend import DeadEndMap
 
 SEED_CLAIMS = Path(__file__).resolve().parents[3] / "data" / "seed" / "lorenz_claims.json"
-SEEDS = [0, 1, 2]
-GAP = 0.2  # minimum metric gap that counts as a reproduced disagreement
+ABLATION_SEEDS = [0, 1, 2]
+COMPARE_SEEDS = [0, 1, 2, 3, 4]
+GAP = 0.2  # minimum mean-error gap that counts as a reproduced disagreement
 
 
 class Investigation(BaseModel):
@@ -29,9 +30,11 @@ class Investigation(BaseModel):
     claims: list[Claim] = Field(default_factory=list)
     conflict: tuple[str, str] | None = None
     condition_report: dict[str, Any] = Field(default_factory=dict)
-    reproduction: dict[str, RunResult] = Field(default_factory=dict)
+    reproduction: dict[str, dict[str, Any]] = Field(default_factory=dict)  # claim id -> mean error, runs
+    attribution: dict[str, float] = Field(default_factory=dict)  # condition -> error added by flipping it
+    hard_conditions: dict[str, Any] = Field(default_factory=dict)
     candidates: list[dict[str, Any]] = Field(default_factory=list)
-    comparison: dict[str, dict[str, float]] = Field(default_factory=dict)
+    comparison: dict[str, dict[str, float]] = Field(default_factory=dict)  # method -> mean, worst
     challenge: dict[str, Any] = Field(default_factory=dict)
     verdict: Verdict | None = None
     referee: list[str] = Field(default_factory=list)
@@ -48,18 +51,19 @@ def investigate(
     goal: Goal,
     offline: bool = True,
     seed_claims: Path = SEED_CLAIMS,
+    claims: list[Claim] | None = None,
     run_root: Path | None = None,
     memory_dir: Path | None = None,
     referee: bool = False,
 ) -> Investigation:
-    inv = Investigation(id=datetime.now().strftime("%Y%m%d-%H%M%S"), goal=goal)
+    inv = Investigation(id=datetime.now().strftime("%Y%m%d-%H%M%S-%f"), goal=goal)
     run_dir = Path(run_root or settings.run_dir) / inv.id
     runner = Runner(goal.budget, run_dir)
     adapter = get_adapter(goal.adapter)
     deadends = DeadEndMap(Path(memory_dir or settings.memory_dir) / "deadends.jsonl")
 
     try:
-        _run(inv, offline, seed_claims, runner, adapter, deadends, run_dir)
+        _run(inv, offline, claims or [], seed_claims, runner, adapter, deadends, run_dir)
         if referee and not offline and inv.verdict:
             from alloy.agent.referee import review
             inv.referee = review(inv)
@@ -68,15 +72,17 @@ def investigate(
         runner.save_manifest()
         if runner.results:
             inv.notebook = str(to_notebook(goal.question, runner.results, run_dir / "replay.ipynb"))
-        (run_dir / "investigation.json").write_text(inv.model_dump_json(indent=2))
+        (run_dir / "investigation.json").write_text(inv.model_dump_json(indent=2), encoding="utf-8")
     return inv
 
 
-def _run(inv, offline, seed_claims, runner, adapter, deadends, run_dir) -> Investigation:
+def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run_dir) -> Investigation:
     goal = inv.goal
 
     # 1-2. Search and map claims into the evidence graph.
-    if offline:
+    if given_claims:
+        inv.claims = list(given_claims)
+    elif offline:
         inv.claims = load_seed(seed_claims)
     else:
         for paper in bond.search(goal.question):
@@ -85,9 +91,8 @@ def _run(inv, offline, seed_claims, runner, adapter, deadends, run_dir) -> Inves
     graph.add_claims(inv.claims)
     graph.save(run_dir / "graph.json")
 
-    # 3. Investigate the first conflict that an adapter can reproduce.
+    # 3a. Pick the first conflict an adapter can reproduce.
     inv.stage = "investigate"
-    report = None
     for a, b in graph.conflicts():
         report = conditions.check(a, b, adapter.condition_keys)
         if report.comparable and report.reproducible:
@@ -96,61 +101,87 @@ def _run(inv, offline, seed_claims, runner, adapter, deadends, run_dir) -> Inves
         return _stop(inv, "no comparable, reproducible conflict found among the claims")
     inv.conflict = (a.id, b.id)
     inv.condition_report = report.__dict__
-    key = report.reproducible[0]
 
     base = ExperimentSpec(
         task=goal.task, adapter=goal.adapter, method=a.method,
         conditions=dict(report.shared), source_claims=[a.id, b.id],
     )
-    for claim in (a, b):
-        spec = base.model_copy(deep=True)
-        spec.conditions[key] = claim.conditions[key]
-        inv.reproduction[claim.id] = runner.run(spec)
-    errors = {cid: r.metrics.get("coef_error", float("inf")) for cid, r in inv.reproduction.items()}
-    if abs(errors[a.id] - errors[b.id]) < GAP:
-        return _stop(inv, f"varying {key} alone did not reproduce the gap; errors {errors}")
-    hard_value = max((a, b), key=lambda c: errors[c.id]).conditions[key]
 
-    # 4. Improve: propose fixes for the weakness and compare under one budget.
+    def at(conds: dict) -> ExperimentSpec:
+        spec = base.model_copy(deep=True)
+        spec.conditions.update(conds)
+        return spec
+
+    keys = report.reproducible
+    setting = {c.id: {k: c.conditions[k] for k in keys} for c in (a, b)}
+
+    # 3b. Reproduce both claims.
+    for claim in (a, b):
+        err, _, runs = compare.evaluate(runner, at(setting[claim.id]), ABLATION_SEEDS)
+        inv.reproduction[claim.id] = {"coef_error": err, "conditions": setting[claim.id],
+                                      "run_ids": [r.id for r in runs]}
+    good, bad = sorted((a, b), key=lambda c: inv.reproduction[c.id]["coef_error"])
+    good_err, bad_err = (inv.reproduction[c.id]["coef_error"] for c in (good, bad))
+    if bad_err - good_err < GAP:
+        return _stop(inv, f"rerunning did not reproduce the gap (mean coef_error {good_err:.3f} vs {bad_err:.3f})")
+
+    # 3c. Attribute the gap: flip one differing condition at a time from the good setting.
+    if len(keys) == 1:
+        key = keys[0]
+        inv.attribution = {key: bad_err - good_err}
+    else:
+        for k in keys:
+            err, _, _ = compare.evaluate(runner, at(setting[good.id] | {k: setting[bad.id][k]}), ABLATION_SEEDS)
+            inv.attribution[k] = err - good_err
+        key = max(inv.attribution, key=inv.attribution.get)
+    inv.hard_conditions = dict(base.conditions) | setting[bad.id]
+    hard = at(setting[bad.id])
+
+    # 4. Improve: propose fixes for the weakness and compare at the hard setting.
     inv.stage = "improve"
     found = methods.propose(key, a.method, adapter.methods, offline=offline)
     inv.candidates = [c.model_dump() for c in found]
-    tried = [a.method] + [c.method for c in found]
-    values = sorted({a.conditions[key], b.conditions[key]})
-    results = compare.grid(runner, base, tried, key, values, SEEDS)
-    summary = compare.summarize(results, key)
-    inv.comparison = {m: {str(v): s for v, s in by.items()} for m, by in summary.items()}
-    best = compare.best_method(summary, hard_value)
+    scores: dict[str, float] = {}
+    runs_by_method = {}
+    for method in [a.method] + [c.method for c in found]:
+        mean, worst, runs = compare.evaluate(runner, hard.model_copy(update={"method": method}), COMPARE_SEEDS)
+        scores[method], runs_by_method[method] = mean, runs
+        inv.comparison[method] = {"mean": mean, "worst": worst}
+    best = compare.best_method(scores)
 
-    # 6 (as we go). Remember failed runs and methods that lost to the baseline.
-    baseline_score = summary.get(a.method, {}).get(hard_value, float("inf"))
-    for r in results:
-        if not r.ok:
-            deadends.record(r, "run failed")
-        elif r.spec.conditions.get(key) == hard_value and r.spec.method != a.method \
-                and summary[r.spec.method][hard_value] >= baseline_score:
-            deadends.record(r, f"did not beat {a.method} at {key}={hard_value}")
+    # 6 (as we go). Remember failed runs and methods that did not beat the baseline.
+    for method, runs in runs_by_method.items():
+        for r in runs:
+            if not r.ok:
+                deadends.record(r, "run failed")
+        if method != a.method and scores[method] >= scores[a.method]:
+            deadends.record(runs[0], f"mean coef_error {scores[method]:.3f} did not beat "
+                                     f"{a.method} ({scores[a.method]:.3f}) at the hard setting")
 
     if not best or best == a.method:
-        return _stop(inv, f"no candidate beat {a.method} at {key}={hard_value}")
+        return _stop(inv, f"no candidate beat {a.method} when {key}={setting[bad.id][key]}")
 
     # 5. Verify the winner on unseen cases.
     inv.stage = "verify"
-    challenge = verify.challenge(runner, base, best, a.method)
+    challenge = verify.challenge(runner, hard, best, a.method, verify.unseen_cases(key, setting[bad.id][key]))
     inv.challenge = challenge.__dict__ | {"passed": challenge.passed}
 
     inv.stage = "done"
+    decoys = [k for k in keys if k != key]
     inv.verdict = Verdict(
         question=goal.question,
         status="resolved" if challenge.passed else "insufficient_evidence",
         explanation=(
-            f"{a.id} and {b.id} disagree because they ran {a.method} at different {key} "
-            f"({a.conditions[key]} vs {b.conditions[key]}). Rerunning reproduces the gap "
-            f"(coef_error {errors[a.id]:.3f} vs {errors[b.id]:.3f}). {best} has the lowest error "
-            f"at {key}={hard_value} and won {challenge.wins}/{len(challenge.cases)} unseen cases."
+            f"{good.id} and {bad.id} disagree because of {key} "
+            f"({setting[good.id][key]} vs {setting[bad.id][key]})"
+            + (f"; {', '.join(decoys)} also differ but explain little" if decoys else "")
+            + f". Rerunning reproduces the gap (mean coef_error {good_err:.3f} vs {bad_err:.3f}). "
+            f"At the harder setting {best} has the lowest mean error over {len(COMPARE_SEEDS)} seeds "
+            f"({scores[best]:.3f} vs {scores[a.method]:.3f} for {a.method}) and won "
+            f"{challenge.wins}/{len(challenge.cases)} unseen cases."
         ),
         deciding_conditions=[key],
         best_method=best,
-        evidence=[a.id, b.id] + [r.id for r in inv.reproduction.values()],
+        evidence=[a.id, b.id] + [rid for rep in inv.reproduction.values() for rid in rep["run_ids"]],
     )
     return inv

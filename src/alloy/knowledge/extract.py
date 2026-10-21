@@ -70,4 +70,4 @@ def extract_claims(paper: Paper, condition_keys: tuple[str, ...], start: int = 1
 
 
 def load_seed(path: Path) -> list[Claim]:
-    return [Claim(**c) for c in json.loads(Path(path).read_text())]
+    return [Claim(**c) for c in json.loads(Path(path).read_text(encoding="utf-8"))]

@@ -45,6 +45,23 @@ The physics task recovers the Lorenz equations with PySINDy. The seed claims say
 
 The seed claims hold placeholder quotes. Replace them with real Bond results before the demo, and check that the two DOIs say what the seed file says they do.
 
+## Benchmark: Alloy vs a plain agent
+
+`uv run alloy bench` runs both systems on the scenarios in `data/scenarios/` with the same claims, simulator and 60-run budget. The scenarios are synthetic. In two of them several conditions differ between the papers and only one causes the failure. An oracle measures every method on 10 seeds that neither system sees. Each system scores on three things: whether it names the right cause, whether its recommended method is within 10% of the oracle's best, and how many runs it used. Add `--alloy-only` to skip the plain agent and its API calls.
+
+First results (21 Oct 2026, Claude Opus 5.5 at medium effort for the plain agent):
+
+| Scenario | System | Cause | Answer | Runs |
+|---|---|---|---|---|
+| noise_simple | Alloy | correct | correct | 32 |
+| noise_simple | plain agent | correct | correct | 35 |
+| noise_with_decoys | Alloy | correct | correct | 41 |
+| noise_with_decoys | plain agent | correct | correct | 19 |
+| short_record | Alloy | correct | correct | 41 |
+| short_record | plain agent | correct | correct | 34 |
+
+The two systems tie on accuracy, and the plain agent used fewer runs in two of three scenarios. On tasks this small, Alloy does not yet save experiments. Next steps: an adaptive comparison in place of fixed seeds, harder scenarios (interacting causes, causes the papers never state), and real Bond papers in place of pre-extracted claims.
+
 ## Contracts
 
 Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Claim` and `ExperimentSpec`. The experiment code reads specs and writes `RunResult`. Agree on any change to that file before you push it.

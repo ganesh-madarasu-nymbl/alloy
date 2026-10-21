@@ -28,11 +28,10 @@ class MethodCandidates(BaseModel):
 
 def propose(weakness: str, baseline: str, supported: tuple[str, ...], offline: bool = False) -> list[MethodCandidate]:
     if offline or not settings.bond_configured:
-        return [
-            MethodCandidate(method=m, rationale=why)
-            for m, why in KNOWN_FIXES.get(weakness, [])
-            if m in supported and m != baseline
-        ]
+        known = KNOWN_FIXES.get(weakness)
+        if known is None:  # no literature prior for this weakness: try every other method
+            known = [(m, f"untested against {weakness}") for m in supported]
+        return [MethodCandidate(method=m, rationale=why) for m, why in known if m in supported and m != baseline]
 
     papers = bond.search(f"methods that make {baseline} robust to {weakness}")
     notes = "\n\n".join(f"{p.title} ({p.id}):\n" + "\n".join(p.passages) for p in papers)

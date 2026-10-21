@@ -38,7 +38,7 @@ def _cache_path(query: str, k: int):
 def search(query: str, k: int = 8, use_cache: bool = True) -> list[Paper]:
     path = _cache_path(query, k)
     if use_cache and path.exists():
-        return PaperList.model_validate_json(path.read_text()).papers
+        return PaperList.model_validate_json(path.read_text(encoding="utf-8")).papers
     if not settings.bond_configured:
         raise RuntimeError("VALENCY_MCP_URL is not set; see .env.example")
 
@@ -66,5 +66,5 @@ def search(query: str, k: int = 8, use_cache: bool = True) -> list[Paper]:
         PaperList,
         effort="low",
     ).papers
-    path.write_text(json.dumps({"papers": [p.model_dump() for p in papers]}, indent=2))
+    path.write_text(json.dumps({"papers": [p.model_dump() for p in papers]}, indent=2), encoding="utf-8")
     return papers

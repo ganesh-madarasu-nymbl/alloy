@@ -28,9 +28,22 @@ def true_derivatives(x: np.ndarray) -> np.ndarray:
     return np.array([rhs(0.0, row) for row in x])
 
 
-def add_noise(x: np.ndarray, level: float, rng: np.random.Generator) -> np.ndarray:
-    """Gaussian noise with std = level * (std of each state variable)."""
-    return x + level * x.std(axis=0) * rng.standard_normal(x.shape)
+NOISE_TYPES = ("gaussian", "outliers")
+
+
+def add_noise(x: np.ndarray, level: float, rng: np.random.Generator, kind: str = "gaussian") -> np.ndarray:
+    """Noise with std = level * (std of each state variable).
+
+    `outliers` adds the same Gaussian noise plus sensor spikes: 1% of samples jump by 20x level.
+    """
+    if kind not in NOISE_TYPES:
+        raise ValueError(f"unknown noise type {kind!r}")
+    scale = x.std(axis=0)
+    noisy = x + level * scale * rng.standard_normal(x.shape)
+    if kind == "outliers":
+        spikes = rng.random(x.shape) < 0.01
+        noisy += spikes * 20 * level * scale * rng.choice([-1.0, 1.0], size=x.shape)
+    return noisy
 
 
 def true_coefficients(feature_names: list[str]) -> np.ndarray:

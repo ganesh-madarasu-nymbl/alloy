@@ -44,10 +44,10 @@ class Runner:
         result.seconds = time.perf_counter() - start
 
         self.results.append(result)
-        (self.run_dir / f"{result.id}.json").write_text(result.model_dump_json(indent=2))
+        (self.run_dir / f"{result.id}.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
         return result
 
     def save_manifest(self) -> Path:
         path = self.run_dir / "manifest.json"
-        path.write_text(json.dumps([r.model_dump() for r in self.results], indent=2, default=str))
+        path.write_text(json.dumps([r.model_dump() for r in self.results], indent=2, default=str), encoding="utf-8")
         return path
