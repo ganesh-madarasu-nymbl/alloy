@@ -47,20 +47,36 @@ The seed claims hold placeholder quotes. Replace them with real Bond results bef
 
 ## Benchmark: Alloy vs a plain agent
 
-`uv run alloy bench` runs both systems on the scenarios in `data/scenarios/` with the same claims, simulator and 60-run budget. The scenarios are synthetic. In two of them several conditions differ between the papers and only one causes the failure. An oracle measures every method on 10 seeds that neither system sees. Each system scores on three things: whether it names the right cause, whether its recommended method is within 10% of the oracle's best, and how many runs it used. Add `--alloy-only` to skip the plain agent and its API calls.
+`uv run alloy bench` runs both systems on the scenarios in `data/scenarios/` with the same claims, simulator and 60-run budget. All scenarios are synthetic and say so in their files.
 
-First results (21 Oct 2026, Claude Opus 5.5 at medium effort for the plain agent):
+| Scenario | What makes it hard |
+|---|---|
+| noise_simple | Nothing: one condition differs |
+| noise_with_decoys | Three conditions differ; only noise matters |
+| short_record | Three conditions differ; only record length matters |
+| hidden_threshold | Both papers state the same conditions; one used a threshold it never reported |
+| many_papers | Ten claims; three conflicts are traps (different system, different units, unsupported method) |
 
-| Scenario | System | Cause | Answer | Runs |
-|---|---|---|---|---|
-| noise_simple | Alloy | correct | correct | 32 |
-| noise_simple | plain agent | correct | correct | 35 |
-| noise_with_decoys | Alloy | correct | correct | 41 |
-| noise_with_decoys | plain agent | correct | correct | 19 |
-| short_record | Alloy | correct | correct | 41 |
-| short_record | plain agent | correct | correct | 34 |
+An oracle measures every method on 10 seeds that neither system sees. Each system scores on three things: whether it names the right cause, whether its recommended method is within 10% (or 0.02) of the oracle's best, and how many runs it used. Add `--alloy-only` to skip the plain agent and its API calls.
 
-The two systems tie on accuracy, and the plain agent used fewer runs in two of three scenarios. On tasks this small, Alloy does not yet save experiments. Next steps: an adaptive comparison in place of fixed seeds, harder scenarios (interacting causes, causes the papers never state), and real Bond papers in place of pre-extracted claims.
+Results on 21 Oct 2026 (plain agent: Claude Opus 5.5 at medium effort, one run per scenario unless noted):
+
+| Scenario | Alloy cause / answer / runs | Plain agent cause / answer / runs |
+|---|---|---|
+| noise_simple | correct / correct / 32 | correct / correct / 31 |
+| noise_with_decoys | correct / correct / 41 | correct / correct / 20 |
+| short_record | correct / correct / 41 | correct / correct / 28 |
+| hidden_threshold | correct / no method question / 17 | correct / no method question / 28 |
+| many_papers (3 agent runs) | correct / missed / 36 | correct in 2 of 3 / missed in 3 of 3 / 17 to 24 |
+
+What the numbers say:
+
+- On small, clean tasks the plain agent matches Alloy and uses fewer runs.
+- Alloy found the unstated threshold in 17 runs; the plain agent needed 28.
+- In one of three many_papers runs, the plain agent chased the units trap (0.02 relative vs 2.0 percent) and blamed the time step. Alloy's Condition Check rules that pair out before running anything.
+- Both systems miss the many_papers answer the same way. On seeds 0 to 4, smoothed-sindy beats smoothed-ensemble-sindy (0.042 vs 0.075); on the oracle's seeds the order flips (0.083 vs 0.058). Five seeds cannot separate them. Alloy reports a tie when two methods fall within each other's standard error, but here they do not on its own seeds.
+
+Next: run each scenario several times for both systems, scale many_papers to real Bond output, and replace the fixed 5-seed comparison with an adaptive one.
 
 ## Contracts
 

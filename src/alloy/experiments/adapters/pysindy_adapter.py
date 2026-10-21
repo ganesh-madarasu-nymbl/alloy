@@ -23,6 +23,14 @@ class PySINDyAdapter:
     methods = ("sindy", "smoothed-sindy", "ensemble-sindy", "smoothed-ensemble-sindy")
     # threshold is a method setting, but papers report it like a condition and it changes results.
     condition_keys = ("system", "noise", "noise_type", "dt", "t_end", "threshold")
+    # Values to try for a setting a paper never states. Defaults are the first entry's neighbours.
+    sweeps = {
+        "threshold": [0.05, 0.1, 0.5, 1.0, 2.0],
+        "noise_type": ["gaussian", "outliers"],
+        "noise": [0.0, 0.05, 0.1, 0.2],
+        "dt": [0.001, 0.002, 0.005, 0.01],
+        "t_end": [2.0, 5.0, 10.0],
+    }
 
     def _model(self, method: str, threshold: float, seed: int) -> ps.SINDy:
         if method not in self.methods:

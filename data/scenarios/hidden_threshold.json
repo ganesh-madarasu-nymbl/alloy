@@ -1,0 +1,14 @@
+{
+  "name": "hidden_threshold",
+  "note": "SYNTHETIC benchmark scenario. Both papers state the same conditions. Paper H used a sparsity threshold of 1.0 and never reported it.",
+  "question": "Two SINDy results on the Lorenz system report very different errors under the same stated conditions. What explains the gap?",
+  "truth": {"deciding_condition": "threshold", "score_answer": false},
+  "claims": [
+    {"id": "c1", "paper": "synthetic-G", "title": "Synthetic paper G", "method": "sindy",
+     "quantity": "coef_error", "value": 0.007, "unit": "relative",
+     "conditions": {"system": "lorenz", "noise": 0.02, "dt": 0.002, "t_end": 10.0}, "source": "seed"},
+    {"id": "c2", "paper": "synthetic-H", "title": "Synthetic paper H", "method": "sindy",
+     "quantity": "coef_error", "value": 1.0, "unit": "relative",
+     "conditions": {"system": "lorenz", "noise": 0.02, "dt": 0.002, "t_end": 10.0}, "source": "seed"}
+  ]
+}

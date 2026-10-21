@@ -32,6 +32,8 @@ class Investigation(BaseModel):
     condition_report: dict[str, Any] = Field(default_factory=dict)
     reproduction: dict[str, dict[str, Any]] = Field(default_factory=dict)  # claim id -> mean error, runs
     attribution: dict[str, float] = Field(default_factory=dict)  # condition -> error added by flipping it
+    hidden_search: list[dict[str, Any]] = Field(default_factory=list)  # unstated settings tried
+    skipped: list[str] = Field(default_factory=list)  # conflicts set aside, with the reason
     hard_conditions: dict[str, Any] = Field(default_factory=dict)
     candidates: list[dict[str, Any]] = Field(default_factory=list)
     comparison: dict[str, dict[str, float]] = Field(default_factory=dict)  # method -> mean, worst
@@ -44,6 +46,48 @@ class Investigation(BaseModel):
 
 def _stop(inv: Investigation, why: str) -> Investigation:
     inv.verdict = Verdict(question=inv.goal.question, status="insufficient_evidence", explanation=why)
+    return inv
+
+
+HIDDEN_SEEDS = [0, 1]
+MATCH_TOL = 0.5  # relative miss allowed when an unstated setting reproduces the reported value
+
+
+def _hidden_search(inv, runner, at, good_setting, good, bad, adapter) -> Investigation:
+    """The stated conditions do not explain the gap. Try settings neither paper reports and find
+    the one that reproduces the worse paper's number."""
+    stated = set(good.conditions) | set(bad.conditions)
+    for key in [k for k in adapter.sweeps if k not in stated]:
+        for value in adapter.sweeps[key]:
+            err, _, runs = compare.evaluate(runner, at(good_setting | {key: value}), HIDDEN_SEEDS)
+            inv.hidden_search.append(
+                {
+                    "condition": key,
+                    "value": value,
+                    "coef_error": err,
+                    "miss": abs(err - bad.value) / max(abs(bad.value), 1e-9),
+                    "run_ids": [r.id for r in runs],
+                }
+            )
+    if not inv.hidden_search:
+        return _stop(inv, "the stated conditions match and the adapter has no unstated settings to try")
+    hit = min(inv.hidden_search, key=lambda h: h["miss"])
+    if hit["miss"] > MATCH_TOL:
+        return _stop(inv, f"no single unstated setting reproduces {bad.id}'s reported {bad.value}")
+
+    inv.stage = "done"
+    inv.verdict = Verdict(
+        question=inv.goal.question,
+        status="likely_unstated_cause",
+        explanation=(
+            f"{good.id} and {bad.id} state the same conditions but report {good.value} vs {bad.value}. "
+            f"Their stated settings do not reproduce the gap. Setting {hit['condition']}={hit['value']}, "
+            f"which neither paper reports, reproduces {bad.id}'s number (mean coef_error {hit['coef_error']:.3f}). "
+            f"Ask {bad.paper}'s authors which {hit['condition']} they used before relying on either result."
+        ),
+        deciding_conditions=[hit["condition"]],
+        evidence=[good.id, bad.id] + hit["run_ids"],
+    )
     return inv
 
 
@@ -66,6 +110,7 @@ def investigate(
         _run(inv, offline, claims or [], seed_claims, runner, adapter, deadends, run_dir)
         if referee and not offline and inv.verdict:
             from alloy.agent.referee import review
+
             inv.referee = review(inv)
     finally:
         inv.runs_used = runner.runs_used
@@ -91,11 +136,20 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
     graph.add_claims(inv.claims)
     graph.save(run_dir / "graph.json")
 
-    # 3a. Pick the first conflict an adapter can reproduce.
+    # 3a. Pick the first comparable conflict the adapter can run. Log why the others were skipped.
     inv.stage = "investigate"
     for a, b in graph.conflicts():
         report = conditions.check(a, b, adapter.condition_keys)
-        if report.comparable and report.reproducible:
+        unrunnable = (report.shared | {k: v[0] for k, v in report.differing.items()}).keys() - set(
+            adapter.condition_keys
+        )
+        if a.method not in adapter.methods:
+            inv.skipped.append(f"{a.id}/{b.id}: method {a.method} is not supported by {adapter.name}")
+        elif not report.comparable:
+            inv.skipped.append(f"{a.id}/{b.id}: not comparable ({'; '.join(report.notes)})")
+        elif report.shared.get("system", "lorenz") != "lorenz" or unrunnable:
+            inv.skipped.append(f"{a.id}/{b.id}: conditions the adapter cannot run")
+        else:
             break
     else:
         return _stop(inv, "no comparable, reproducible conflict found among the claims")
@@ -103,8 +157,11 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
     inv.condition_report = report.__dict__
 
     base = ExperimentSpec(
-        task=goal.task, adapter=goal.adapter, method=a.method,
-        conditions=dict(report.shared), source_claims=[a.id, b.id],
+        task=goal.task,
+        adapter=goal.adapter,
+        method=a.method,
+        conditions=dict(report.shared),
+        source_claims=[a.id, b.id],
     )
 
     def at(conds: dict) -> ExperimentSpec:
@@ -115,14 +172,24 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
     keys = report.reproducible
     setting = {c.id: {k: c.conditions[k] for k in keys} for c in (a, b)}
 
-    # 3b. Reproduce both claims.
+    # 3b. Reproduce both claims at their stated settings (one run set when the settings match).
     for claim in (a, b):
+        if claim is b and setting[a.id] == setting[b.id]:
+            inv.reproduction[b.id] = dict(inv.reproduction[a.id])
+            continue
         err, _, runs = compare.evaluate(runner, at(setting[claim.id]), ABLATION_SEEDS)
-        inv.reproduction[claim.id] = {"coef_error": err, "conditions": setting[claim.id],
-                                      "run_ids": [r.id for r in runs]}
-    good, bad = sorted((a, b), key=lambda c: inv.reproduction[c.id]["coef_error"])
+        inv.reproduction[claim.id] = {
+            "coef_error": err,
+            "conditions": setting[claim.id],
+            "run_ids": [r.id for r in runs],
+        }
+    numeric = a.value is not None and b.value is not None
+    rank = (lambda c: c.value) if numeric else (lambda c: inv.reproduction[c.id]["coef_error"])
+    good, bad = sorted((a, b), key=rank)
     good_err, bad_err = (inv.reproduction[c.id]["coef_error"] for c in (good, bad))
     if bad_err - good_err < GAP:
+        if numeric:
+            return _hidden_search(inv, runner, at, setting[good.id], good, bad, adapter)
         return _stop(inv, f"rerunning did not reproduce the gap (mean coef_error {good_err:.3f} vs {bad_err:.3f})")
 
     # 3c. Attribute the gap: flip one differing condition at a time from the good setting.
@@ -146,8 +213,9 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
     for method in [a.method] + [c.method for c in found]:
         mean, worst, runs = compare.evaluate(runner, hard.model_copy(update={"method": method}), COMPARE_SEEDS)
         scores[method], runs_by_method[method] = mean, runs
-        inv.comparison[method] = {"mean": mean, "worst": worst}
+        inv.comparison[method] = {"mean": mean, "worst": worst, "stderr": compare.stderr(runs)}
     best = compare.best_method(scores)
+    close = compare.too_close_to_call(inv.comparison, best) if best else []
 
     # 6 (as we go). Remember failed runs and methods that did not beat the baseline.
     for method, runs in runs_by_method.items():
@@ -155,8 +223,11 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
             if not r.ok:
                 deadends.record(r, "run failed")
         if method != a.method and scores[method] >= scores[a.method]:
-            deadends.record(runs[0], f"mean coef_error {scores[method]:.3f} did not beat "
-                                     f"{a.method} ({scores[a.method]:.3f}) at the hard setting")
+            deadends.record(
+                runs[0],
+                f"mean coef_error {scores[method]:.3f} did not beat "
+                f"{a.method} ({scores[a.method]:.3f}) at the hard setting",
+            )
 
     if not best or best == a.method:
         return _stop(inv, f"no candidate beat {a.method} when {key}={setting[bad.id][key]}")
@@ -179,6 +250,7 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
             f"At the harder setting {best} has the lowest mean error over {len(COMPARE_SEEDS)} seeds "
             f"({scores[best]:.3f} vs {scores[a.method]:.3f} for {a.method}) and won "
             f"{challenge.wins}/{len(challenge.cases)} unseen cases."
+            + (f" {', '.join(close)} is within seed noise of {best}; treat them as tied." if close else "")
         ),
         deciding_conditions=[key],
         best_method=best,

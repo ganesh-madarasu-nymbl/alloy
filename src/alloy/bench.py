@@ -42,7 +42,7 @@ class Score(BaseModel):
     cause: str | None
     cause_correct: bool
     answer: str | None
-    answer_correct: bool
+    answer_correct: bool | None  # None when the scenario has no method question
     answer_oracle_error: float | None
     runs_used: int
 
@@ -63,8 +63,12 @@ def oracle(scenario: Scenario, adapter_name: str = "pysindy", task: str = "equat
             errs.append(adapter.run(spec)[0]["coef_error"])
         return mean(errs)
 
-    method = scenario.claims[0].method
-    hard = max((c.conditions for c in scenario.claims), key=lambda conds: mean_error(method, conds))
+    pair = scenario.truth.get("pair")
+    claims = [c for c in scenario.claims if c.id in pair] if pair else scenario.claims
+    if not scenario.truth.get("score_answer", True):
+        return Oracle(hard_conditions={}, means={}, acceptable=[])
+    method = claims[0].method
+    hard = max((c.conditions for c in claims), key=lambda conds: mean_error(method, conds))
     means = {m: mean_error(m, hard) for m in adapter.methods}
     best = min(means.values())
     acceptable = [m for m, v in means.items() if v <= max(best * (1 + REL_TOL), best + ABS_TOL)]
@@ -78,7 +82,7 @@ def score(system: str, scenario: Scenario, truth: Oracle, cause: str | None, ans
         cause=cause,
         cause_correct=cause == scenario.truth["deciding_condition"],
         answer=answer,
-        answer_correct=answer in truth.acceptable,
+        answer_correct=(answer in truth.acceptable) if scenario.truth.get("score_answer", True) else None,
         answer_oracle_error=truth.means.get(answer) if answer else None,
         runs_used=runs,
     )

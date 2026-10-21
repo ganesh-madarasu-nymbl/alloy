@@ -33,6 +33,7 @@ class DeadEndMap:
 
     def lookup(self, method: str, **conditions) -> list[dict]:
         return [
-            e for e in self.entries()
+            e
+            for e in self.entries()
             if e["method"] == method and all(e["conditions"].get(k) == v for k, v in conditions.items())
         ]

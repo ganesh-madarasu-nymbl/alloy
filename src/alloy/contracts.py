@@ -58,7 +58,8 @@ class Goal(BaseModel):
 
 class Verdict(BaseModel):
     question: str
-    status: Literal["resolved", "insufficient_evidence"]
+    # likely_unstated_cause: a setting neither paper reports reproduces the gap; ask the authors to confirm
+    status: Literal["resolved", "likely_unstated_cause", "insufficient_evidence"]
     explanation: str
     deciding_conditions: list[str] = Field(default_factory=list)
     best_method: str | None = None

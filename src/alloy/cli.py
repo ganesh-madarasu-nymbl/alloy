@@ -96,7 +96,8 @@ def run_bench(runs: int, names: list[str] | None, alloy_only: bool) -> None:
     print(f"\n{'scenario':20s} {'system':12s} {'cause':>14s} {'answer':>26s} {'oracle err':>10s} {'runs':>5s}")
     for s in scores:
         cause = f"{s.cause}{' ok' if s.cause_correct else ' X'}"
-        answer = f"{s.answer}{' ok' if s.answer_correct else ' X'}"
+        mark = {True: " ok", False: " X", None: " n/a"}[s.answer_correct]
+        answer = f"{s.answer}{mark}"
         err = f"{s.answer_oracle_error:.3f}" if s.answer_oracle_error is not None else "-"
         print(f"{s.scenario:20s} {s.system:12s} {cause:>14s} {answer:>26s} {err:>10s} {s.runs_used:>5d}")
     (settings.run_dir / "bench.json").write_text(

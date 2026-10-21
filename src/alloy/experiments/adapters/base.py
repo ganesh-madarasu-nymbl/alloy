@@ -11,6 +11,8 @@ class Adapter(Protocol):
     methods: tuple[str, ...]
     # Conditions the adapter understands, so Condition Check knows what it can reproduce.
     condition_keys: tuple[str, ...]
+    # Candidate values per condition, used to search for settings a paper never states.
+    sweeps: dict[str, list[Any]]
 
     def run(self, spec: ExperimentSpec) -> tuple[dict[str, float], dict[str, Any]]:
         """Return (metrics, artifacts). Lower-is-better metrics should end in `_error`."""

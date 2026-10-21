@@ -68,8 +68,14 @@ def run_baseline(goal: Goal, claims: list[Claim], run_dir: Path) -> BaselineResu
             threshold: Sparsity threshold of the STLSQ regression.
             seed: Random seed for the noise.
         """
-        conds = {"system": "lorenz", "noise": noise, "dt": dt, "t_end": t_end,
-                 "noise_type": noise_type, "threshold": threshold}
+        conds = {
+            "system": "lorenz",
+            "noise": noise,
+            "dt": dt,
+            "t_end": t_end,
+            "noise_type": noise_type,
+            "threshold": threshold,
+        }
         spec = ExperimentSpec(task=goal.task, adapter=goal.adapter, method=method, conditions=conds, seed=seed)
         try:
             result = runner.run(spec)

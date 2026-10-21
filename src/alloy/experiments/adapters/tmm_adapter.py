@@ -14,6 +14,7 @@ class TMMAdapter:
     task = "cooling-coatings"
     methods = ("baseline-stack",)
     condition_keys = ("layers", "thickness_tolerance_nm", "ambient_k")
+    sweeps: dict = {}
 
     def run(self, spec: ExperimentSpec) -> tuple[dict[str, float], dict[str, Any]]:
         # TODO(santosh, hour 20): layer stack -> tmm.coh_tmm over solar + 8-13 um bands,
