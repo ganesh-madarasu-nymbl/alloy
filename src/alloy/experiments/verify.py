@@ -1,6 +1,7 @@
 """MirageLab: challenge a winning method on cases it never saw before."""
 
 from dataclasses import dataclass, field
+from math import isfinite
 from typing import Any
 
 from alloy.contracts import ExperimentSpec, RunResult
@@ -49,6 +50,6 @@ def challenge(
             spec.conditions.update(case)
             scores[method] = runner.run(spec)
         c, b = (scores[m].metrics.get(metric, float("inf")) for m in (candidate, baseline))
-        out.wins += c < b
+        out.wins += all(r.ok for r in scores.values()) and isfinite(c) and isfinite(b) and c < b
         out.cases.append({**case, candidate: c, baseline: b, "run_ids": [r.id for r in scores.values()]})
     return out

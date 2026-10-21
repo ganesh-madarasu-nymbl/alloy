@@ -70,3 +70,21 @@ def test_coatings_caller_handles_empty_comparison_without_division_error(monkeyp
         {"single-emitter": []}, None))
     run_coatings(3, 30, 0)
     assert "no best coating" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("baseline,ok", [(float("inf"), False), (float("nan"), True), (.9, False), (.9, True)])
+def test_unseen_challenge_requires_two_successful_finite_measurements(baseline, ok):
+    from alloy.experiments.verify import challenge
+
+    class Runner:
+        results = []
+
+        def run(self, spec):
+            result = RunResult(id=f"r{len(self.results)}", spec=spec, ok=ok if spec.method == "a" else True,
+                               metrics={"heldout_error": baseline if spec.method == "a" else .1})
+            self.results.append(result)
+            return result
+
+    result = challenge(Runner(), specs()["a"], "b", "a", [{"heldout_x0": [1, 1, i]} for i in range(3)])
+    assert result.passed == (ok and baseline == .9)
+    assert result.wins == (3 if result.passed else 0)
