@@ -1,0 +1,24 @@
+[
+  {
+    "id": "c1",
+    "paper": "10.1073/pnas.1517384113",
+    "title": "Discovering governing equations from data by sparse identification of nonlinear dynamical systems",
+    "method": "sindy",
+    "quantity": "equations_recovered",
+    "outcome": "recovers",
+    "conditions": {"system": "lorenz", "noise": 0.01},
+    "quote": "PLACEHOLDER: replace with the exact sentence from Bond before the demo",
+    "source": "seed"
+  },
+  {
+    "id": "c2",
+    "paper": "10.1137/20M1343166",
+    "title": "Weak SINDy: Galerkin-based data-driven model selection",
+    "method": "sindy",
+    "quantity": "equations_recovered",
+    "outcome": "fails",
+    "conditions": {"system": "lorenz", "noise": 0.2},
+    "quote": "PLACEHOLDER: replace with the exact sentence from Bond before the demo",
+    "source": "seed"
+  }
+]
