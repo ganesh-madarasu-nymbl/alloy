@@ -55,6 +55,7 @@ def papers_from_mcp(result: dict) -> list[Paper]:
     if not isinstance(rows, list):
         raise ValueError("Unrecognized Bond result shape; inspect the raw response before using it")
     papers = []
+    seen = set()
     for row in rows:
         if not isinstance(row, dict):
             raise ValueError("Unrecognized Bond paper record; no papers were cached")
@@ -62,6 +63,22 @@ def papers_from_mcp(result: dict) -> list[Paper]:
         title = row.get("title")
         if not isinstance(identifier, str) or not identifier or not isinstance(title, str) or not title:
             raise ValueError("Bond paper is missing a usable identifier or title")
+        # The same published work can arrive from arXiv and PubMed. Keep the first
+        # ranked record so duplicate indexes cannot look like independent evidence.
+        doi = row.get("doi")
+        identities = set()
+        if isinstance(doi, str) and doi.strip():
+            canonical_doi = doi.strip().casefold()
+            for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
+                canonical_doi = canonical_doi.removeprefix(prefix)
+            identities.add(("doi", canonical_doi.strip()))
+        record_id = row.get("base_id") or row.get("id") or row.get("arxiv_id")
+        if isinstance(record_id, str) and record_id.strip():
+            identities.add(("record", row.get("source"), record_id.strip()))
+        duplicate = bool(identities & seen)
+        seen.update(identities)
+        if duplicate:
+            continue
         abstract = row.get("abstract")
         papers.append(Paper(
             id=identifier, title=title,

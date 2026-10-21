@@ -52,6 +52,30 @@ def test_metadata_is_not_invented_as_full_text():
     assert bond.papers_from_mcp(result)[0].passages == []
 
 
+def test_cross_source_copies_are_one_work_and_raw_evidence_is_preserved(monkeypatch, tmp_path):
+    monkeypatch.setattr(bond, "settings", replace(bond.settings, cache_dir=tmp_path))
+    result = {"structuredContent": {"papers": [
+        {"id": "2111.10992v1", "source": "arxiv", "doi": "10.1098/rspa.2021.0904",
+         "title": "Ensemble-SINDy", "abstract": "First ranked abstract."},
+        {"id": "35450025", "source": "pubmed", "doi": "https://doi.org/10.1098/RSPA.2021.0904",
+         "title": "Ensemble-SINDy.", "abstract": "Another index of the same work."},
+        {"id": "2410.17838v1", "source": "arxiv", "doi": "",
+         "title": "Weak-form modified SINDy", "abstract": "A distinct work."},
+    ]}}
+    path, papers = bond.cache_mcp_result("noise robust equation discovery", 3, result)
+    assert len(papers) == 2
+    assert papers[0].passages == ["First ranked abstract."]
+    assert len(json.loads(path.with_suffix(".raw.json").read_text())["result"]["structuredContent"]["papers"]) == 3
+
+
+def test_record_ids_are_scoped_to_source():
+    result = {"structuredContent": {"papers": [
+        {"id": "123", "source": "pubmed", "title": "One work"},
+        {"id": "123", "source": "other", "title": "A different work"},
+    ]}}
+    assert len(bond.papers_from_mcp(result)) == 2
+
+
 def test_search_uses_ephemeral_thread_and_only_research_tool():
     async def run():
         client = codex_bond.CodexBond()
