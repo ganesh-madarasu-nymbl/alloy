@@ -1,0 +1,5 @@
+{
+  "1509.03580": "@misc{brunton2015discovering,\n  title = {Discovering governing equations from data: Sparse identification of nonlinear dynamical systems},\n  author = {Steven L. Brunton and Joshua L. Proctor and J. Nathan Kutz},\n  year = {2015},\n  doi = {10.1073/pnas.1517384113},\n  eprint = {1509.03580},\n  archiveprefix = {arXiv},\n  primaryclass = {math.DS}\n}",
+  "2005.04339": "@misc{messenger2020weak,\n  title = {Weak SINDy: Galerkin-Based Data-Driven Model Selection},\n  author = {Daniel A. Messenger and David M. Bortz},\n  year = {2020},\n  doi = {10.1137/20M1343166},\n  eprint = {2005.04339},\n  archiveprefix = {arXiv},\n  primaryclass = {math.NA}\n}",
+  "2009.08810": "@misc{kaheman2020automatic,\n  title = {Automatic Differentiation to Simultaneously Identify Nonlinear Dynamics and Extract Noise Probability Distributions from Data},\n  author = {Kadierdan Kaheman and Steven L. Brunton and J. Nathan Kutz},\n  year = {2020},\n  eprint = {2009.08810},\n  archiveprefix = {arXiv},\n  primaryclass = {eess.SP}\n}"
+}
