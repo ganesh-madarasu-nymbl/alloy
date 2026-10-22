@@ -28,6 +28,19 @@ class Settings:
     cache_dir: Path = field(default_factory=lambda: _path("ALLOY_CACHE_DIR", "cache"))
     run_dir: Path = field(default_factory=lambda: _path("ALLOY_RUN_DIR", "runs"))
     memory_dir: Path = field(default_factory=lambda: _path("ALLOY_MEMORY_DIR", "memory"))
+    # A public deployment shares one model key with every visitor: smaller budgets, an optional
+    # passcode for live literature, and a daily cap on live runs across all sessions.
+    public: bool = field(default_factory=lambda: os.getenv("ALLOY_PUBLIC", "").lower() in {"1", "true", "yes"})
+    live_passcode: str = field(default_factory=lambda: os.getenv("ALLOY_LIVE_PASSCODE", ""))
+    live_runs_per_day: int = field(default_factory=lambda: int(os.getenv("ALLOY_LIVE_RUNS_PER_DAY", "40")))
+
+    @property
+    def max_runs(self) -> int:
+        return 120 if self.public else 500
+
+    @property
+    def max_minutes(self) -> float:
+        return 10.0 if self.public else 60.0
 
     @property
     def bond_configured(self) -> bool:

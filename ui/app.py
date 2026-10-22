@@ -19,6 +19,7 @@ from alloy.knowledge.records import local_notebook, read_investigation
 from alloy.knowledge.source_bundle import load_bundle
 from alloy.memory.deadend import DeadEndMap
 from alloy.ui import style
+from alloy.ui.limits import live_runs_left, live_unlocked, record_live_run
 
 MODES = {
     "Synthetic demonstration": "<b>Synthetic demonstration.</b> Runs the full pipeline on built-in Lorenz claims "
@@ -126,8 +127,8 @@ else:
     with st.form("goal"):
         question = st.text_area("Research goal", DEFAULT_QUESTION, height=80)
         c1, c2, c3 = st.columns([1, 1, 1.4], vertical_alignment="center")
-        runs = c1.number_input("Run budget", 10, 500, 60)
-        minutes = c2.number_input("Time budget (min)", 1.0, 60.0, 5.0)
+        runs = c1.number_input("Run budget", 10, settings.max_runs, 60)
+        minutes = c2.number_input("Time budget (min)", 1.0, settings.max_minutes, 5.0)
         online = c3.toggle(
             "Live literature (Bond + model)", value=False,
             disabled=not settings.bond_configured or mode != "Synthetic demonstration",
@@ -136,11 +137,20 @@ else:
         online = online and mode == "Synthetic demonstration"
         if online:
             st.caption("Live mode searches Bond instead of using seed claims; model rate limits apply.")
+        passcode = ""
+        if settings.live_passcode and settings.bond_configured and mode == "Synthetic demonstration":
+            passcode = st.text_input("Live passcode", type="password", help="Required only for live literature.")
         submitted = st.form_submit_button(
             "Investigate", type="primary", icon=":material/science:",
             disabled=mode == "Saved investigation" or (mode == "Reviewed literature" and not eligible),
         )
 
+    if submitted and online and not live_unlocked(settings, passcode):
+        st.error("Live literature needs the passcode. Synthetic runs need none.")
+        submitted = False
+    if submitted and online and live_runs_left(settings) <= 0:
+        st.error("Today's live-run allowance is used up. Synthetic runs are still available.")
+        submitted = False
     if submitted:
         st.session_state.pop("inv", None)
         st.session_state.saved_record = False
@@ -150,6 +160,8 @@ else:
                 # Never pass an empty literature list: the loop would use its synthetic fallback.
                 if mode == "Reviewed literature" and not claims:
                     raise ValueError("No reviewed runnable claims")
+                if online:
+                    record_live_run(settings)
                 st.session_state.inv = investigate(
                     Goal(question=question, budget=Budget(runs=runs, minutes=minutes)),
                     offline=not online, referee=online, claims=claims,

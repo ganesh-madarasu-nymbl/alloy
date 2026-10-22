@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from alloy import config
 from alloy.agent.campaign import run_campaign
 from alloy.contracts import Budget, Goal
 from alloy.knowledge.campaign_report import campaign_markdown
@@ -51,8 +52,8 @@ def show_collection(*, saved: bool):
         st.download_button("Download collection plan", plan.model_dump_json(indent=2), "collection-plan.json")
         with st.form("campaign_goal"):
             question = st.text_area("Collection research goal", "Audit the discrepancies in this collection")
-            runs = st.number_input("Total campaign run budget", 0, 500, 60)
-            minutes = st.number_input("Shared time budget (min)", 0.1, 60.0, 5.0)
+            runs = st.number_input("Total campaign run budget", 0, config.settings.max_runs, 60)
+            minutes = st.number_input("Shared time budget (min)", 0.1, config.settings.max_minutes, 5.0)
             submitted = st.form_submit_button("Run campaign", disabled=not plan.selected)
         if not plan.selected:
             st.warning("No eligible cross-paper pair. No simulation or synthetic fallback will run.")

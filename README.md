@@ -78,6 +78,25 @@ source sentence they came from, and claims whose quote is not in the source are 
 compares its cause and method with Alloy's investigation, adding a "second opinion" table to
 the report.
 
+### Hosting a public copy
+
+The app runs on [Streamlit Community Cloud](https://share.streamlit.io) for free. Deploy
+`santoshnymbl/alloy`, branch `main`, main file `ui/app.py`, Python 3.11 or later; Cloud installs
+from `uv.lock`. Add these secrets in the app settings (TOML, one per line):
+
+```toml
+GROQ_API_KEY = "..."
+ALLOY_PUBLIC = "1"              # caps budgets at 120 runs and 10 minutes
+ALLOY_LIVE_PASSCODE = "..."     # optional; visitors need it only for live literature
+ALLOY_LIVE_RUNS_PER_DAY = "40"  # shared by every visitor
+```
+
+Synthetic, reviewed and saved modes need only the model key. Live literature also needs the
+`VALENCY_*` values. Valency rotates refresh tokens on every renewal, so give the hosted copy
+its own sign-in: a refresh token shared with a laptop stops working on whichever side renews
+second. The hosted cache is wiped on restart, after which the stored refresh token is stale
+and live mode needs a new sign-in.
+
 ### Audit a collection under one budget
 
 ```bash
