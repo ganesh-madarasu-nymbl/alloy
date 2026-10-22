@@ -200,11 +200,28 @@ No updated efficiency or superiority claim is established here; paid reruns were
 | hidden_threshold | 1/1 / no method question / 17 | 5/5 / no method question / 12.4 |
 | many_papers | 1/1 / 0/1, flagged as a tie / 41 | 5/5 / 0/5 / 7.4 |
 
+**Rerun on the free model (21 Oct 2026).** One plain-agent run per scenario on GPT-OSS-120B
+through Groq's free tier. The short_record agent run stopped at Groq's token limit, so that row
+has Alloy only. One run per scenario is an anecdote, not a rate.
+
+| Scenario | Alloy cause / answer / runs | Plain agent (GPT-OSS-120B, n=1) cause / answer / runs |
+|---|---|---|
+| noise_simple | right / right / 34 | noise, right / smoothed-sindy, right / 20 |
+| noise_with_decoys | right / right / 43 | noise, right / smoothed-ensemble-sindy, right / 19 |
+| short_record | right / right / 45 | not run (token limit) |
+| hidden_threshold | right / no method question / 17 | outliers, wrong / no method question / 20 |
+| many_papers | right / wrong, flagged as a tie / 41 | sparsity threshold, wrong / smoothed-ensemble-sindy, right / 19 |
+
+On the free model the plain agent named the wrong cause twice: it blamed outlier noise when
+the hidden setting was the threshold, and the threshold when the cause was noise. Alloy's
+offline loop does not use the model, so its column matches the Sonnet table.
+
 An earlier single-run pass with Claude Opus 5.5 as the plain agent used 17 to 35 runs per scenario and once took the units trap in many_papers. Sonnet 5.5 never took the trap in 5 runs.
 
 What the numbers say:
 
-- The plain agent matches Alloy on every cause and every answer, and uses 3 to 10 times fewer runs.
+- With Sonnet 5.5 the plain agent matches Alloy on every cause and every answer, and uses 3 to 10 times
+  fewer runs. With the free GPT-OSS-120B it missed two of four causes (n=1 each).
 - In noise_simple and noise_with_decoys, Sonnet named noise after about 4 runs without testing the decoy conditions. Its prior knowledge that noise breaks SINDy solves these scenarios. They test textbook knowledge more than investigation.
 - Both systems miss the many_papers answer the same way. Alloy now races methods: it drops a method once it trails the leader by more than two combined standard errors and adds seeds to the rest, up to 9. After 9 seeds smoothed-sindy still leads (0.052 vs 0.066), so Alloy's verdict calls the two tied. The plain agent picks one without a warning.
 - On these scenarios the data do not support the claim that Alloy finds good combinations with fewer experiments.
@@ -238,8 +255,8 @@ Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Cl
 - [x] UI: condition differences, citation trail, saved records and failure history
 - [x] Bounded collection planner, shared-budget campaign records and saved campaign UI
 - [x] Research-style Streamlit UI
-- [ ] Rerun the plain-agent benchmark on GPT-OSS-120B
-- [ ] Public Streamlit Cloud deployment
+- [ ] Finish the GPT-OSS-120B plain-agent rerun: short_record and repeats (4 of 5 scenarios done, n=1)
+- [ ] Public Streamlit Cloud deployment (public-mode guards ready; needs a sign-in at share.streamlit.io)
 - [ ] Record the backup demo video from cached runs
 
 ## Adding a scientific task
