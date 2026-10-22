@@ -41,7 +41,7 @@ def test_weak_form_example_stops_honestly():
     assert "Not enough evidence" in text
 
 
-def test_fields_without_an_adapter_say_so():
+def test_page_states_which_papers_alloy_can_rerun():
     app = _app()
-    app.radio[0].set_value("Any other field").run()
-    assert not app.exception and "adapter" in app.info[0].value
+    assert not app.radio
+    assert any("equations from data" in c.value for c in app.caption)

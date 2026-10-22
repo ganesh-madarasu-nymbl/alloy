@@ -9,13 +9,10 @@ from alloy.agent import pair_finder, real_pair
 from alloy.config import settings
 from alloy.ui.limits import live_runs_left, live_unlocked, record_live_run
 
-FIELDS = {
-    "Equations from data": None,
-    "Cooling coatings": "Alloy reruns thin-film coatings with tmm from the command line (`alloy coatings`). "
-    "Real-paper audits for coatings come next.",
-    "Any other field": "Bond searches every field, but Alloy can only rerun a field it has an adapter for. "
-    "Today that is equations from data and thin-film coatings.",
-}
+SCOPE = (
+    "Alloy reruns papers that discover equations from data. "
+    "A thin-film coatings adapter runs from the command line (`alloy coatings`)."
+)
 
 
 @dataclass(frozen=True)
@@ -257,10 +254,7 @@ def show_real_pair() -> None:
         "each quote against the abstract. Alloy then reads both full texts, takes every setting with its quote, "
         "reproduces both papers and tests which setting explains the disagreement. Nothing is chosen in advance."
     )
-    field = st.radio("Field", list(FIELDS), horizontal=True, key="rp_field")
-    if FIELDS[field]:
-        st.info(FIELDS[field])
-        return
+    st.caption(SCOPE)
     question = st.text_input(
         "Research question",
         placeholder="e.g. Does SINDy still recover the Lorenz equations at high measurement noise?",
