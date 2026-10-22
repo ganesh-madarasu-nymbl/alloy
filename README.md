@@ -22,7 +22,7 @@ We first set out to show that Alloy finds good method combinations with fewer ex
 Needs Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/santoshnymbl/alloy.git && cd alloy
+git clone https://github.com/ganesh-madarasu-nymbl/alloy.git && cd alloy
 uv sync
 uv run streamlit run ui/app.py   # open http://localhost:8501 and press Investigate
 ```
@@ -84,7 +84,7 @@ from Bond when Bond is configured.
 ### Hosting a public copy
 
 The app runs on [Streamlit Community Cloud](https://share.streamlit.io) for free. Deploy
-`santoshnymbl/alloy`, branch `main`, main file `ui/app.py`, Python 3.11 or later; Cloud installs
+`ganesh-madarasu-nymbl/alloy`, branch `main`, main file `ui/app.py`, Python 3.11 or later; Cloud installs
 from `uv.lock`. Add these secrets in the app settings (TOML, one per line):
 
 ```toml
