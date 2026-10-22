@@ -36,7 +36,7 @@
       "reproduction_eligible": false,
       "blockers": [
         "The threshold is not stated; 0.025 comes from the authors' released code, not the paper.",
-        "The text describes convex l1 minimisation; Code 1 uses sequentially thresholded least squares without a ridge penalty. The adapter reproduces Table 4 only with ridge 0.",
+        "The text describes convex l1 minimisation; Code 1 uses sequentially thresholded least squares without a ridge penalty. The adapter reproduces Table 4 with ridge 0 and with pysindy's default ridge 0.05.",
         "Whether the clean derivatives are exact or numerical is not stated.",
         "Table 4 reports coefficients from a single noise realisation, not an aggregate measurement."
       ]

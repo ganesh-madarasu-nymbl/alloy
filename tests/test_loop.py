@@ -54,3 +54,9 @@ def test_distractor_conflicts_are_skipped_with_reasons(tmp_path):
     inv = _bench_run("many_papers", tmp_path)
     assert inv.conflict == ("c9", "c10")
     assert len(inv.skipped) == 3
+
+
+def test_investigations_started_together_get_distinct_ids(tmp_path):
+    goal = Goal(question="test", budget=Budget(runs=60, minutes=5))
+    ids = {investigate(goal, offline=True, run_root=tmp_path / "runs", memory_dir=tmp_path / "m").id for _ in range(3)}
+    assert len(ids) == 3

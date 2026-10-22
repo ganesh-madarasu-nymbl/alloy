@@ -1,5 +1,6 @@
 """The six-stage investigation: search, understand, investigate, improve, verify, remember."""
 
+import uuid
 from datetime import datetime
 from math import isfinite
 from pathlib import Path
@@ -106,7 +107,10 @@ def investigate(
     *,
     output_dir: Path | None = None,
 ) -> Investigation:
-    inv = Investigation(id=datetime.now().strftime("%Y%m%d-%H%M%S-%f"), goal=goal, claims=list(claims or []))
+    # A random suffix keeps runs apart when two start in the same clock tick (Windows, shared hosting).
+    inv = Investigation(
+        id=f"{datetime.now():%Y%m%d-%H%M%S-%f}-{uuid.uuid4().hex[:6]}", goal=goal, claims=list(claims or [])
+    )
     run_dir = Path(output_dir) if output_dir is not None else Path(run_root or settings.run_dir) / inv.id
     runner = Runner(goal.budget, run_dir)
     deadends = DeadEndMap(Path(memory_dir or settings.memory_dir) / "deadends.jsonl")
