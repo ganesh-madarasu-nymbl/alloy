@@ -1,0 +1,447 @@
+{
+ "id": "real-pair-20261022-145159-468648",
+ "papers": [
+  "arxiv:1509.03580",
+  "arxiv:2009.08810"
+ ],
+ "query": "SINDy fails at high measurement noise Lorenz",
+ "bond": {
+  "status": "ok",
+  "papers": {
+   "1509.03580": {
+    "title": "Discovering governing equations from data: Sparse identification of nonlinear dynamical systems",
+    "doi": "10.1073/pnas.1517384113",
+    "citations": 4904
+   },
+   "2009.08810": {
+    "title": "Automatic Differentiation to Simultaneously Identify Nonlinear Dynamics and Extract Noise Probability Distributions from Data",
+    "doi": "",
+    "citations": 92
+   }
+  },
+  "search_rank": {
+   "1509.03580": null,
+   "2009.08810": 3
+  }
+ },
+ "results": [
+  {
+   "paper": "arxiv:1509.03580",
+   "title": "Discovering governing equations from data: Sparse identification of nonlinear dynamical systems",
+   "url": "https://arxiv.org/html/1509.03580",
+   "outcome": "recovers",
+   "outcome_noise": "1",
+   "outcome_source": "reviewed",
+   "outcome_quote": "Table 4: identified Lorenz coefficients at derivative-noise variance eta = 1",
+   "outcome_note": "Read by a reviewer from Table 4. The text adds that the form of the equations holds up to eta = 10.",
+   "settings": {
+    "noise_location": {
+     "value": "derivative",
+     "source": "stated",
+     "quote": "Zero-mean Gaussian measurement noise with variance \\eta is added to the derivative calculation to investigate the effect of noisy derivatives.",
+     "note": "derivative"
+    },
+    "noise_type": {
+     "value": "gaussian",
+     "source": "stated",
+     "quote": "Zero-mean Gaussian measurement noise with variance \\eta is added to the derivative calculation to investigate the effect of noisy derivatives.",
+     "note": "gaussian"
+    },
+    "poly_degree": {
+     "value": 5,
+     "source": "stated",
+     "quote": "right-hand side dynamics are identified in the space of polynomials \\boldsymbol{\\Theta}(\\mathbf{X}) in (x,y,z) up to fifth order",
+     "note": "5"
+    },
+    "x0": {
+     "value": [
+      -8.0,
+      7.0,
+      27.0
+     ],
+     "source": "stated",
+     "quote": "For this example, we use the standard parameters \\sigma=10,\\beta=8/3,\\rho=28 , with an initial condition \\begin{bmatrix}x&y&z\\end{bmatrix}^{T}=\\begin{bmatrix}-8&7&27\\end{bmatrix}^{T} .",
+     "note": "[-8, 7, 27]^T"
+    },
+    "dt": {
+     "value": 0.001,
+     "source": "stated",
+     "quote": "Data is collected from t=0 to t=100 with a time-step of \\Delta t=0.001",
+     "note": "0.001"
+    },
+    "t_end": {
+     "value": 100.0,
+     "source": "stated",
+     "quote": "Data is collected from t=0 to t=100 with a time-step of \\Delta t=0.001",
+     "note": "100"
+    },
+    "derivative": {
+     "value": "numeric",
+     "source": "default",
+     "quote": null,
+     "note": "adapter default"
+    },
+    "ridge": {
+     "value": 0.05,
+     "source": "default",
+     "quote": null,
+     "note": "adapter default"
+    },
+    "noise_scale": {
+     "value": "variance",
+     "source": "stated",
+     "quote": "Zero-mean Gaussian measurement noise with variance \\eta is added to the derivative calculation to investigate the effect of noisy derivatives.",
+     "note": "variance"
+    }
+   },
+   "rejected": [],
+   "reading": "paper settings, 1 as noise variance",
+   "conditions": {
+    "system": "lorenz",
+    "noise_location": "derivative",
+    "noise_type": "gaussian",
+    "poly_degree": 5,
+    "x0": [
+     -8.0,
+     7.0,
+     27.0
+    ],
+    "dt": 0.001,
+    "t_end": 100.0,
+    "derivative": "numeric",
+    "ridge": 0.05,
+    "noise": 1.0,
+    "noise_scale": "variance",
+    "threshold": 0.1
+   },
+   "threshold_rule": "unstated: best of 8 values",
+   "recovered": 1.0,
+   "tier": "reproduced_under_assumptions",
+   "assumptions": [
+    "derivative = numeric (default: adapter default)",
+    "ridge = 0.05 (default: adapter default)",
+    "unstated: best of 8 values",
+    "outcome read by a reviewer: Table 4: identified Lorenz coefficients at derivative-noise variance eta = 1"
+   ],
+   "attempts": [
+    {
+     "label": "paper settings, 1 as noise variance",
+     "recovered": 1.0,
+     "matches": true
+    }
+   ],
+   "error": null
+  },
+  {
+   "paper": "arxiv:2009.08810",
+   "title": "Automatic Differentiation to Simultaneously Identify Nonlinear Dynamics and Extract Noise Probability Distributions from Data",
+   "url": "https://arxiv.org/html/2009.08810",
+   "outcome": "fails",
+   "outcome_noise": "10%",
+   "outcome_source": "reviewed",
+   "outcome_quote": "Figure 14 bar labels: 8% is the most noise original SINDy handles on Lorenz",
+   "outcome_note": "Read by a reviewer from the Figure 14 image. 10% is the first level above the stated 8% limit; the paper does not list the tested levels, so 10% is an assumption.",
+   "settings": {
+    "noise_type": {
+     "value": "gaussian",
+     "source": "stated",
+     "quote": "Different magnitudes of Gaussian noise are added to generate the noisy training data.",
+     "note": "gaussian"
+    },
+    "noise_location": {
+     "value": "state",
+     "source": "stated",
+     "quote": "In practice, noise-free measurements of \\mathbf{x}(t) are not available, and only the full state noisy measurement | \\mathbf{y}(t)=\\mathbf{x}(t)+\\mathbf{n}(t), | (4) is provided to SINDy from sensors, where \\mathbf{y}(t)=[y_{1}(t),y_{2}(t),\\cdots,y_{n}(t)]\\in\\mathbb{R}^{1\\times n} is noisy measurement and \\mathbf{n}(t)=[n_{1}(t),n_{2}(t),\\cdots,n_{n}(t)]\\in\\mathbb{R}^{1\\times n} is the noise added to true state.",
+     "note": "state"
+    },
+    "x0": {
+     "value": [
+      5.0,
+      5.0,
+      25.0
+     ],
+     "source": "stated",
+     "quote": "The Lorenz attractor is simulated with initial condition x_{0}=[5,5,25] , T=25 , and dt=0.01 .",
+     "note": "[5,5,25]"
+    },
+    "dt": {
+     "value": 0.01,
+     "source": "stated",
+     "quote": "The Lorenz attractor is simulated with initial condition x_{0}=[5,5,25] , T=25 , and dt=0.01 .",
+     "note": "0.01"
+    },
+    "t_end": {
+     "value": 25.0,
+     "source": "stated",
+     "quote": "The Lorenz attractor is simulated with initial condition x_{0}=[5,5,25] , T=25 , and dt=0.01 .",
+     "note": "25"
+    },
+    "derivative": {
+     "value": "numeric",
+     "source": "rule",
+     "quote": null,
+     "note": "noisy states need numerical derivatives"
+    },
+    "poly_degree": {
+     "value": 5,
+     "source": "other_paper",
+     "quote": null,
+     "note": "stated by arxiv:1509.03580"
+    },
+    "ridge": {
+     "value": 0.05,
+     "source": "default",
+     "quote": null,
+     "note": "adapter default"
+    },
+    "noise_scale": {
+     "value": "variance_ratio",
+     "source": "stated",
+     "quote": "The noise level is defined as | \\text{Noise Level}~(\\%)=\\frac{\\mbox{var}(\\text{Noise)}}{\\mbox{var}(\\text{Signal})}\\times 100\\%. | (19) Figure 2: Top: Noise identification error of modified SINDy (labeled as SINDy) and NN denoising approach by Rudy et al. [1].",
+     "note": "variance_ratio"
+    }
+   },
+   "rejected": [
+    "threshold: dropped by reviewer (lambda = 0.1 in Section 3.2 applies to modified SINDy; original SINDy used a threshold sweep with no stated selection rule)",
+    "poly_degree: dropped by reviewer (the 'second order' library in Section 3.2 is stated for modified SINDy; the library for original SINDy is not stated)"
+   ],
+   "reading": "paper settings, 10% as var(noise)/var(signal)",
+   "conditions": {
+    "system": "lorenz",
+    "noise_type": "gaussian",
+    "noise_location": "state",
+    "x0": [
+     5.0,
+     5.0,
+     25.0
+    ],
+    "dt": 0.01,
+    "t_end": 25.0,
+    "derivative": "numeric",
+    "poly_degree": 5,
+    "ridge": 0.05,
+    "noise": 0.31622776601683794,
+    "noise_scale": "state_std",
+    "threshold": 0.1
+   },
+   "threshold_rule": "unstated: best of 8 values",
+   "recovered": 0.0,
+   "tier": "reproduced_under_assumptions",
+   "assumptions": [
+    "derivative = numeric (rule: noisy states need numerical derivatives)",
+    "poly_degree = 5 (other_paper: stated by arxiv:1509.03580)",
+    "ridge = 0.05 (default: adapter default)",
+    "unstated: best of 8 values",
+    "outcome read by a reviewer: Figure 14 bar labels: 8% is the most noise original SINDy handles on Lorenz"
+   ],
+   "attempts": [
+    {
+     "label": "paper settings, 10% as var(noise)/var(signal)",
+     "recovered": 0.0,
+     "matches": true
+    }
+   ],
+   "error": null
+  }
+ ],
+ "attribution": {
+  "noise level": {
+   "recovered_after_flip": 0.6666666666666666,
+   "effect": 0.33333333333333337,
+   "failing_paper_recovered_after_flip": 0.0
+  },
+  "noise placement": {
+   "recovered_after_flip": 0.0,
+   "effect": 1.0,
+   "failing_paper_recovered_after_flip": 0.3333333333333333
+  },
+  "record": {
+   "recovered_after_flip": 1.0,
+   "effect": 0.0,
+   "failing_paper_recovered_after_flip": 0.0
+  }
+ },
+ "deciding": "noise placement",
+ "verdict": "Both papers reproduce (arxiv:1509.03580: reproduced_under_assumptions, arxiv:2009.08810: reproduced_under_assumptions). Moving the recovering paper's noise placement to the failing paper's value drops recovery from 1.00 to 0.00. This matches the hand-checked answer (noise placement).",
+ "truth": "noise placement",
+ "fix": {
+  "setup": "arxiv:2009.08810",
+  "arms": [
+   {
+    "label": "smoothed-ensemble-sindy (threshold 0.5)",
+    "method": "smoothed-ensemble-sindy",
+    "threshold": 0.5,
+    "mean_error": 0.1945780863935566,
+    "stderr": 0.027369584527579916,
+    "seeds": 3,
+    "recovered": 0.0,
+    "dropped_after": null
+   },
+   {
+    "label": "smoothed-ensemble-sindy (threshold 0.2)",
+    "method": "smoothed-ensemble-sindy",
+    "threshold": 0.2,
+    "mean_error": 0.20086976789286945,
+    "stderr": 0.026829705141752775,
+    "seeds": 3,
+    "recovered": 0.0,
+    "dropped_after": null
+   },
+   {
+    "label": "smoothed-sindy (threshold 0.5)",
+    "method": "smoothed-sindy",
+    "threshold": 0.5,
+    "mean_error": 0.29533060907478614,
+    "stderr": 0.08692989350659124,
+    "seeds": 3,
+    "recovered": 0.3333333333333333,
+    "dropped_after": null
+   },
+   {
+    "label": "smoothed-ensemble-sindy (threshold 0.1)",
+    "method": "smoothed-ensemble-sindy",
+    "threshold": 0.1,
+    "mean_error": 0.56966602826765,
+    "stderr": 0.06699940868653735,
+    "seeds": 2,
+    "recovered": 0.0,
+    "dropped_after": 2
+   },
+   {
+    "label": "sindy (threshold 0.5)",
+    "method": "sindy",
+    "threshold": 0.5,
+    "mean_error": 0.694617515437872,
+    "stderr": 0.23622610872681538,
+    "seeds": 3,
+    "recovered": 0.0,
+    "dropped_after": 3
+   },
+   {
+    "label": "smoothed-sindy (threshold 0.1)",
+    "method": "smoothed-sindy",
+    "threshold": 0.1,
+    "mean_error": 0.7706258110597322,
+    "stderr": 0.2676897930378047,
+    "seeds": 3,
+    "recovered": 0.0,
+    "dropped_after": 3
+   },
+   {
+    "label": "ensemble-sindy (threshold 0.5)",
+    "method": "ensemble-sindy",
+    "threshold": 0.5,
+    "mean_error": 0.8082869488627009,
+    "stderr": 0.19261038437705066,
+    "seeds": 3,
+    "recovered": 0.0,
+    "dropped_after": 3
+   },
+   {
+    "label": "ensemble-sindy (threshold 0.2)",
+    "method": "ensemble-sindy",
+    "threshold": 0.2,
+    "mean_error": 0.8966743635500642,
+    "stderr": 0.15592406288667823,
+    "seeds": 2,
+    "recovered": 0.0,
+    "dropped_after": 2
+   },
+   {
+    "label": "sindy (threshold 0.2)",
+    "method": "sindy",
+    "threshold": 0.2,
+    "mean_error": 0.9034622638024954,
+    "stderr": 0.015130182352098452,
+    "seeds": 2,
+    "recovered": 0.0,
+    "dropped_after": 2
+   },
+   {
+    "label": "smoothed-sindy (threshold 0.2)",
+    "method": "smoothed-sindy",
+    "threshold": 0.2,
+    "mean_error": 0.9169643826689665,
+    "stderr": 0.2883405535285889,
+    "seeds": 2,
+    "recovered": 0.0,
+    "dropped_after": 2
+   },
+   {
+    "label": "ensemble-sindy (threshold 0.1)",
+    "method": "ensemble-sindy",
+    "threshold": 0.1,
+    "mean_error": 1.0092283497386592,
+    "stderr": 0.1637183112724605,
+    "seeds": 2,
+    "recovered": 0.0,
+    "dropped_after": 2
+   },
+   {
+    "label": "sindy (threshold 0.1)",
+    "method": "sindy",
+    "threshold": 0.1,
+    "mean_error": 1.0106270405413975,
+    "stderr": 0.0566706410033671,
+    "seeds": 2,
+    "recovered": 0.0,
+    "dropped_after": 2
+   }
+  ],
+  "winner": "smoothed-ensemble-sindy (threshold 0.5)",
+  "baseline": "sindy (threshold 0.5)",
+  "ties": [
+   "smoothed-ensemble-sindy (threshold 0.2)"
+  ],
+  "unseen": [
+   {
+    "start": [
+     1.0,
+     1.0,
+     1.0
+    ],
+    "noise": 0.23717082451262844,
+    "smoothed-ensemble-sindy (threshold 0.5)": 0.0660527813457355,
+    "sindy (threshold 0.5)": 0.16293032516604697,
+    "winner_better": true
+   },
+   {
+    "start": [
+     -10.0,
+     -10.0,
+     30.0
+    ],
+    "noise": 0.31622776601683794,
+    "smoothed-ensemble-sindy (threshold 0.5)": 0.15134750841836755,
+    "sindy (threshold 0.5)": 0.6889026645284364,
+    "winner_better": true
+   },
+   {
+    "start": [
+     3.0,
+     15.0,
+     10.0
+    ],
+    "noise": 0.39528470752104744,
+    "smoothed-ensemble-sindy (threshold 0.5)": 0.1259784208254138,
+    "sindy (threshold 0.5)": 0.5524106062844976,
+    "winner_better": true
+   }
+  ],
+  "unseen_wins": 3,
+  "dead_ends": [
+   "smoothed-ensemble-sindy (threshold 0.1): dropped after 2 seeds, error 0.57",
+   "sindy (threshold 0.5): dropped after 3 seeds, error 0.69",
+   "smoothed-sindy (threshold 0.1): dropped after 3 seeds, error 0.77",
+   "ensemble-sindy (threshold 0.5): dropped after 3 seeds, error 0.81",
+   "ensemble-sindy (threshold 0.2): dropped after 2 seeds, error 0.90",
+   "sindy (threshold 0.2): dropped after 2 seeds, error 0.90",
+   "smoothed-sindy (threshold 0.2): dropped after 2 seeds, error 0.92",
+   "ensemble-sindy (threshold 0.1): dropped after 2 seeds, error 1.01",
+   "sindy (threshold 0.1): dropped after 2 seeds, error 1.01"
+  ],
+  "summary": "On arxiv:2009.08810's setup, smoothed-ensemble-sindy (threshold 0.5) cuts coefficient error from 0.69 (best standard SINDy, sindy (threshold 0.5)) to 0.19, and still misses some Lorenz terms. It beats standard SINDy on 3 of 3 unseen trajectories. Tied within seed noise: smoothed-ensemble-sindy (threshold 0.2)."
+ },
+ "runs_used": 188,
+ "notebook": null
+}

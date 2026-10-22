@@ -1,0 +1,222 @@
+{
+ "id": "real-pair-20261022-145341-196134",
+ "papers": [
+  "arxiv:1509.03580",
+  "arxiv:2005.04339"
+ ],
+ "query": "SINDy fails at high measurement noise Lorenz",
+ "bond": {
+  "status": "ok",
+  "papers": {
+   "1509.03580": {
+    "title": "Discovering governing equations from data: Sparse identification of nonlinear dynamical systems",
+    "doi": "10.1073/pnas.1517384113",
+    "citations": 4904
+   },
+   "2005.04339": {
+    "title": "Weak SINDy: Galerkin-Based Data-Driven Model Selection",
+    "doi": "10.1137/20M1343166",
+    "citations": 163
+   }
+  },
+  "search_rank": {
+   "1509.03580": null,
+   "2005.04339": 8
+  }
+ },
+ "results": [
+  {
+   "paper": "arxiv:1509.03580",
+   "title": "Discovering governing equations from data: Sparse identification of nonlinear dynamical systems",
+   "url": "https://arxiv.org/html/1509.03580",
+   "outcome": "recovers",
+   "outcome_noise": "1",
+   "outcome_source": "reviewed",
+   "outcome_quote": "Table 4: identified Lorenz coefficients at derivative-noise variance eta = 1",
+   "outcome_note": "Read by a reviewer from Table 4. The text adds that the form of the equations holds up to eta = 10.",
+   "settings": {
+    "noise_location": {
+     "value": "derivative",
+     "source": "stated",
+     "quote": "Zero-mean Gaussian measurement noise with variance \\eta is added to the derivative calculation to investigate the effect of noisy derivatives.",
+     "note": "derivative"
+    },
+    "noise_type": {
+     "value": "gaussian",
+     "source": "stated",
+     "quote": "Zero-mean Gaussian measurement noise with variance \\eta is added to the derivative calculation to investigate the effect of noisy derivatives.",
+     "note": "gaussian"
+    },
+    "poly_degree": {
+     "value": 5,
+     "source": "stated",
+     "quote": "right-hand side dynamics are identified in the space of polynomials \\boldsymbol{\\Theta}(\\mathbf{X}) in (x,y,z) up to fifth order",
+     "note": "5"
+    },
+    "x0": {
+     "value": [
+      -8.0,
+      7.0,
+      27.0
+     ],
+     "source": "stated",
+     "quote": "For this example, we use the standard parameters \\sigma=10,\\beta=8/3,\\rho=28 , with an initial condition \\begin{bmatrix}x&y&z\\end{bmatrix}^{T}=\\begin{bmatrix}-8&7&27\\end{bmatrix}^{T} .",
+     "note": "[-8, 7, 27]^T"
+    },
+    "dt": {
+     "value": 0.001,
+     "source": "stated",
+     "quote": "Data is collected from t=0 to t=100 with a time-step of \\Delta t=0.001",
+     "note": "0.001"
+    },
+    "t_end": {
+     "value": 100.0,
+     "source": "stated",
+     "quote": "Data is collected from t=0 to t=100 with a time-step of \\Delta t=0.001",
+     "note": "100"
+    },
+    "derivative": {
+     "value": "numeric",
+     "source": "default",
+     "quote": null,
+     "note": "adapter default"
+    },
+    "ridge": {
+     "value": 0.0,
+     "source": "other_paper",
+     "quote": null,
+     "note": "stated by arxiv:2005.04339"
+    },
+    "noise_scale": {
+     "value": "variance",
+     "source": "stated",
+     "quote": "Zero-mean Gaussian measurement noise with variance \\eta is added to the derivative calculation to investigate the effect of noisy derivatives.",
+     "note": "variance"
+    }
+   },
+   "rejected": [],
+   "reading": "paper settings, 1 as noise variance",
+   "conditions": {
+    "system": "lorenz",
+    "noise_location": "derivative",
+    "noise_type": "gaussian",
+    "poly_degree": 5,
+    "x0": [
+     -8.0,
+     7.0,
+     27.0
+    ],
+    "dt": 0.001,
+    "t_end": 100.0,
+    "derivative": "numeric",
+    "ridge": 0.0,
+    "noise": 1.0,
+    "noise_scale": "variance",
+    "threshold": 0.1
+   },
+   "threshold_rule": "unstated: best of 8 values",
+   "recovered": 1.0,
+   "tier": "reproduced_under_assumptions",
+   "assumptions": [
+    "derivative = numeric (default: adapter default)",
+    "ridge = 0.0 (other_paper: stated by arxiv:2005.04339)",
+    "unstated: best of 8 values",
+    "outcome read by a reviewer: Table 4: identified Lorenz coefficients at derivative-noise variance eta = 1"
+   ],
+   "attempts": [
+    {
+     "label": "paper settings, 1 as noise variance",
+     "recovered": 1.0,
+     "matches": true
+    }
+   ],
+   "error": null
+  },
+  {
+   "paper": "arxiv:2005.04339",
+   "title": "Weak SINDy: Galerkin-Based Data-Driven Model Selection",
+   "url": "https://arxiv.org/html/2005.04339",
+   "outcome": null,
+   "outcome_noise": null,
+   "outcome_source": "none",
+   "outcome_quote": null,
+   "outcome_note": null,
+   "settings": {
+    "poly_degree": {
+     "value": 5,
+     "source": "stated",
+     "quote": "we include all polynomials up to degree 5 in the state variables",
+     "note": "5"
+    },
+    "ridge": {
+     "value": 0.0,
+     "source": "stated",
+     "quote": "we set \\gamma=0",
+     "note": "0"
+    },
+    "x0": {
+     "value": [
+      -8.0,
+      7.0,
+      27.0
+     ],
+     "source": "stated",
+     "quote": "with \\mathbf{x}_{0}=[-8\\ 7\\ 27]^{T}",
+     "note": "[-8 7 27]^T"
+    },
+    "noise_type": {
+     "value": "gaussian",
+     "source": "other_paper",
+     "quote": null,
+     "note": "stated by arxiv:1509.03580"
+    },
+    "noise_location": {
+     "value": "state",
+     "source": "default",
+     "quote": null,
+     "note": "adapter default"
+    },
+    "derivative": {
+     "value": "numeric",
+     "source": "rule",
+     "quote": null,
+     "note": "noisy states need numerical derivatives"
+    },
+    "dt": {
+     "value": 0.001,
+     "source": "other_paper",
+     "quote": null,
+     "note": "stated by arxiv:1509.03580"
+    },
+    "t_end": {
+     "value": 100.0,
+     "source": "other_paper",
+     "quote": null,
+     "note": "stated by arxiv:1509.03580"
+    },
+    "threshold": {
+     "value": 0.001,
+     "source": "stated",
+     "quote": "we set \\lambda=0.001 throughout",
+     "note": "0.001"
+    }
+   },
+   "rejected": [],
+   "reading": null,
+   "conditions": {},
+   "threshold_rule": "",
+   "recovered": null,
+   "tier": "not_reproduced",
+   "assumptions": [],
+   "attempts": [],
+   "error": "no reported outcome with a usable noise level"
+  }
+ ],
+ "attribution": {},
+ "deciding": null,
+ "verdict": "arxiv:2005.04339 states no standard-SINDy outcome in its text, so there is nothing to reproduce. If the result is in a figure or table, a reviewer can add it to data/literature/reviewed_outcomes.json with its locator.",
+ "truth": null,
+ "fix": null,
+ "runs_used": 5,
+ "notebook": null
+}

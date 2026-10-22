@@ -298,6 +298,22 @@ def run(
     return report
 
 
+EXAMPLES = protocol.LITERATURE / "examples"
+
+
+def save_example(report: RealPairReport, name: str, directory: Path = EXAMPLES) -> Path:
+    """Keep a finished audit so the app can show it without a model key or a passcode."""
+    path = Path(directory) / f"{name}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(report.model_copy(update={"notebook": None}).model_dump_json(indent=1), encoding="utf-8")
+    return path
+
+
+def load_example(name: str, directory: Path = EXAMPLES) -> RealPairReport | None:
+    path = Path(directory) / f"{name}.json"
+    return RealPairReport.model_validate_json(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
 def _verdict(report: RealPairReport) -> str:
     tiers = {r.paper: r.tier for r in report.results}
     missing = [r.paper for r in report.results if r.outcome is None]

@@ -1,0 +1,44 @@
+{
+ "paper": "arxiv:2005.04339",
+ "system": "lorenz",
+ "settings": {
+  "poly_degree": {
+   "value": 5,
+   "source": "stated",
+   "quote": "we include all polynomials up to degree 5 in the state variables",
+   "note": "5"
+  },
+  "threshold": {
+   "value": 0.001,
+   "source": "stated",
+   "quote": "we set \\lambda=0.001 throughout",
+   "note": "0.001"
+  },
+  "ridge": {
+   "value": 0.0,
+   "source": "stated",
+   "quote": "we set \\gamma=0",
+   "note": "0"
+  },
+  "x0": {
+   "value": [
+    -8.0,
+    7.0,
+    27.0
+   ],
+   "source": "stated",
+   "quote": "with \\mathbf{x}_{0}=[-8\\ 7\\ 27]^{T}",
+   "note": "[-8 7 27]^T"
+  },
+  "noise": {
+   "value": 0.1,
+   "source": "stated",
+   "quote": "The signal to noise ratio is \\sigma_{SNR}=0.1 for the Duffing, Van der Pol and Lorenz equations, and \\sigma_{SNR}=0.05 for Lotka-Volterra.",
+   "note": "σ_{SNR}=0.1"
+  }
+ },
+ "outcome": null,
+ "outcome_source": "none",
+ "outcome_note": null,
+ "rejected": []
+}
