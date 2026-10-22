@@ -44,6 +44,13 @@ EXAMPLES = (
         "Live: reruns a fixed pair, no passcode",
         ("arxiv:1509.03580", "arxiv:2009.08810"),
     ),
+    Example(
+        "Second paper",
+        "Does another paper that reports SINDy failing on noisy Lorenz data disagree for the same reason?",
+        None,
+        "Live: a pair Bond found today, no passcode",
+        ("arxiv:1509.03580", "arxiv:2204.10472"),
+    ),
 )
 
 
@@ -116,6 +123,9 @@ def _report_cards(report: real_pair.RealPairReport) -> list[dict]:
 
 
 def _headline(report: real_pair.RealPairReport) -> str:
+    if len(report.causes) > 1:
+        causes = " and ".join(real_pair.GROUP_LABELS.get(c, c) for c in report.causes)
+        return f"Both papers hold up. {causes.capitalize()} each explain the disagreement alone."
     if report.deciding:
         return f"Both papers hold up. They disagree because of {report.deciding}."
     if any(r.outcome is None for r in report.results):

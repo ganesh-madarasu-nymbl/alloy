@@ -180,3 +180,27 @@ def test_fix_claims_no_improvement_when_an_early_dropped_sindy_arm_beats_the_lea
     out = real_fix.fix(Runner(Budget(runs=50, minutes=5), tmp_path), "arxiv:hard", HARD)
     assert "No noise-robust variant clearly beat standard SINDy" in out.summary
     assert "cuts" not in out.summary and not out.unseen and not out.verified
+
+
+def test_verdict_names_every_group_that_flips_the_result_alone():
+    from alloy.agent.real_pair import PaperResult, RealPairReport, _verdict
+
+    report = RealPairReport(
+        id="x",
+        papers=["arxiv:a", "arxiv:b"],
+        query="q",
+        results=[
+            PaperResult(paper="arxiv:a", outcome="recovers", tier="reproduced_under_assumptions", recovered=1.0),
+            PaperResult(paper="arxiv:b", outcome="fails", tier="reproduced_under_assumptions", recovered=0.0),
+        ],
+        attribution={
+            "noise placement": {"recovered_after_flip": 0.0, "effect": 1.0},
+            "record": {"recovered_after_flip": 0.0, "effect": 1.0},
+            "noise level": {"recovered_after_flip": 0.67, "effect": 0.33},
+        },
+        deciding="noise placement",
+    )
+    assert report.causes == ["noise placement", "record"]
+    text = _verdict(report)
+    assert "Moving its record length alone also drops recovery from 1.00 to 0.00" in text
+    assert "cannot name a single cause" in text and "noise level alone" not in text

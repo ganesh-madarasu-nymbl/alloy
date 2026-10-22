@@ -1,0 +1,54 @@
+{
+ "paper": "arxiv:2204.10472",
+ "system": "lorenz",
+ "settings": {
+  "x0": {
+   "value": [
+    -5.0,
+    10.0,
+    30.0
+   ],
+   "source": "stated",
+   "quote": "with initial condition [x_{1}(0),x_{2}(0),x_{3}(0)]^{\\top}=[\\eta_{1},\\eta_{2},\\eta_{3}]^{\\top}=[-5,10,30]^{\\top} .",
+   "note": "[-5,10,30]"
+  },
+  "dt": {
+   "value": 0.005,
+   "source": "stated",
+   "quote": "h=0.005",
+   "note": "0.005"
+  },
+  "noise": {
+   "value": 0.05,
+   "source": "stated",
+   "quote": "nvr\\in[5\\%,10\\%,15\\%]",
+   "note": "[5%,10%,15%]"
+  },
+  "threshold": {
+   "value": 0.8,
+   "source": "stated",
+   "quote": "The threshold value is set to \\lambda=0.8",
+   "note": "0.8"
+  },
+  "poly_degree": {
+   "value": 3,
+   "source": "stated",
+   "quote": "polynomial features: degree 3",
+   "note": "3"
+  },
+  "t_end": {
+   "value": 5.0,
+   "source": "stated",
+   "quote": "t\\in[0,5]",
+   "note": "reviewer: the verifier did not read the interval [0,5]"
+  }
+ },
+ "outcome": {
+  "result": "fails",
+  "noise_as_written": "[5%,10%,15%]",
+  "quote": "The results show that SINDy, InSINDy, and ISINDy correctly identify the active terms in all three noisy scenarios for the first component, but SINDy and InSINDy fail to identify the correct active terms in the second and third components, letting alone the accurate estimates of parameters."
+ },
+ "outcome_source": "text",
+ "outcome_note": null,
+ "rejected": []
+}

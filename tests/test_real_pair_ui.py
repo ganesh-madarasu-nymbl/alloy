@@ -52,3 +52,8 @@ def test_live_card_offers_a_pinned_run_without_a_passcode():
     text = _click(app, "Run it live")
     assert "Live run on a fixed pair: 1509.03580 vs 2009.08810" in text
     assert any(b.label == "Run this audit live" for b in app.button)
+
+
+def test_second_live_card_pins_the_pair_bond_found():
+    text = _click(_app(), "Second paper")
+    assert "Live run on a fixed pair: 1509.03580 vs 2204.10472" in text

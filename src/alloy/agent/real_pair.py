@@ -90,6 +90,17 @@ class RealPairReport(BaseModel):
     runs_used: int = 0
     notebook: str | None = None
 
+    @property
+    def causes(self) -> list[str]:
+        """Every settings group that flips the result on its own, the deciding one first."""
+        if not self.deciding:
+            return []
+        others = sorted(
+            (g for g, e in self.attribution.items() if g != self.deciding and e["effect"] >= 0.5),
+            key=lambda g: -self.attribution[g]["effect"],
+        )
+        return [self.deciding, *others]
+
 
 def _recovered(runner: Runner, conds: dict, threshold_stated: bool) -> float:
     """Fraction of seeds that recover exactly the true Lorenz terms."""
@@ -314,6 +325,9 @@ def load_example(name: str, directory: Path = EXAMPLES) -> RealPairReport | None
     return RealPairReport.model_validate_json(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+GROUP_LABELS = {"record": "record length"}
+
+
 def _verdict(report: RealPairReport) -> str:
     tiers = {r.paper: r.tier for r in report.results}
     missing = [r.paper for r in report.results if r.outcome is None]
@@ -333,6 +347,17 @@ def _verdict(report: RealPairReport) -> str:
         f"recovering paper's {report.deciding} to the failing paper's value drops recovery from "
         f"{effect['effect'] + effect['recovered_after_flip']:.2f} to {effect['recovered_after_flip']:.2f}."
     )
+    for other in report.causes[1:]:
+        e = report.attribution[other]
+        before, after = e["effect"] + e["recovered_after_flip"], e["recovered_after_flip"]
+        text += (
+            f" Moving its {GROUP_LABELS.get(other, other)} alone also drops recovery from {before:.2f} to {after:.2f}."
+        )
+    if len(report.causes) > 1:
+        text += (
+            f" {len(report.causes)} settings groups each explain the disagreement on their own, "
+            "so Alloy cannot name a single cause."
+        )
     if report.truth:
         text += (
             f" This matches the hand-checked answer ({report.truth})."
