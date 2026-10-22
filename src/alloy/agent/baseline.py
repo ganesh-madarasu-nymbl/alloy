@@ -5,6 +5,7 @@ Alloy, but no evidence graph, no Condition Check and no method search. bench.py 
 """
 
 import json
+import re
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -31,6 +32,12 @@ class BaselineResult(BaseModel):
     turns: int
     input_tokens: int
     output_tokens: int
+
+
+def condition_name(text: str) -> str:
+    """The condition key from an answer such as "t_end (short trajectory length)", so grading compares names."""
+    match = re.match(r"\s*([A-Za-z_]\w*)", text or "")
+    return match.group(1) if match else (text or "").strip()
 
 
 def _claims_text(claims: list[Claim]) -> str:
@@ -92,7 +99,7 @@ def run_baseline(goal: Goal, claims: list[Claim], run_dir: Path) -> BaselineResu
             deciding_condition: The one condition name (as written in the papers) that causes the gap.
             reason: One or two sentences on your evidence.
         """
-        submitted.update(method=method, deciding_condition=deciding_condition, reason=reason)
+        submitted.update(method=method, deciding_condition=condition_name(deciding_condition), reason=reason)
         return "submitted"
 
     prompt = (

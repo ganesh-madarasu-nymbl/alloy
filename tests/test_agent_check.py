@@ -2,7 +2,7 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import Mock
 
-from alloy.agent.baseline import BaselineResult, second_opinion
+from alloy.agent.baseline import BaselineResult, condition_name, second_opinion
 from alloy.agent.loop import Investigation
 from alloy.contracts import Goal, Verdict
 
@@ -110,3 +110,9 @@ def test_agent_check_needs_the_passcode_in_public_mode(
     assert any("passcode" in e.value for e in app.error)
     run.assert_not_called()
     assert not (tmp_path / "live_usage.json").exists()
+
+
+def test_submitted_condition_is_reduced_to_its_name():
+    assert condition_name("t_end (short trajectory length)") == "t_end"
+    assert condition_name("  noise") == "noise"
+    assert condition_name("") == ""
