@@ -1,44 +1,96 @@
-"""Real paper pair: Bond finds the papers, arXiv supplies the text, Alloy reproduces both and finds the cause."""
-
-import json
+"""Real paper pair: Bond finds papers, the model picks two that disagree, Alloy reproduces both and finds the cause."""
 
 import pandas as pd
 import streamlit as st
 
-from alloy.agent import real_pair
+from alloy.agent import pair_finder, real_pair
 from alloy.config import settings
+from alloy.ui.limits import live_runs_left, live_unlocked, record_live_run
 
 
-def _latest():
-    reports = sorted(settings.run_dir.glob("real-pair-*/real_pair.json"), key=lambda p: p.stat().st_mtime)
-    return real_pair.RealPairReport(**json.loads(reports[-1].read_text(encoding="utf-8"))) if reports else None
+def _allowed(passcode: str) -> bool:
+    """Same rule as the other live modes: the passcode, then the daily allowance."""
+    if not live_unlocked(settings, passcode):
+        st.error("This needs the live passcode.")
+        return False
+    if settings.public and live_runs_left(settings) <= 0:
+        st.error("Today's live-run allowance is used up.")
+        return False
+    if settings.public:
+        record_live_run(settings)
+    return True
 
 
 def show_real_pair() -> None:
     st.subheader("Real paper pair")
     st.caption(
-        "Settings come from each paper's full text (arXiv HTML) with a quote for every value. Gaps are filled by rule "
-        "and labelled; outcomes read from figures are marked as reviewer-read. Brunton vs Kaheman has a hand-checked "
-        "answer, so it is the one scored pair."
+        "Ask a question. Bond searches arXiv, the model picks two papers whose abstracts disagree, and code checks "
+        "each quote against the abstract. Alloy then reads both full texts, takes every setting with its quote, "
+        "reproduces both papers and tests which setting explains the disagreement. Nothing is chosen in advance."
     )
-    c1, c2, c3 = st.columns([2, 2, 1], vertical_alignment="bottom")
-    a = c1.text_input("Paper A (arXiv id)", real_pair.DEFAULT_PAIR[0])
-    b = c2.text_input("Paper B (arXiv id)", real_pair.DEFAULT_PAIR[1])
-    run = c3.button("Run audit", type="primary")
-    if run:
-        with st.spinner("Reproducing both papers..."):
+    question = st.text_input(
+        "Research question",
+        placeholder="e.g. Does SINDy still recover the Lorenz equations at high measurement noise?",
+    )
+    passcode = (
+        st.text_input("Live passcode", type="password")
+        if settings.live_passcode
+        else ""
+    )
+    if st.button(
+        "Find disagreeing papers", type="primary", disabled=not question.strip()
+    ) and _allowed(passcode):
+        st.session_state.pop("found_pair", None)
+        st.session_state.pop("real_pair", None)
+        with st.spinner("Searching arXiv through Bond and reading the abstracts..."):
+            try:
+                st.session_state.found_pair = pair_finder.find(question.strip())
+            except (
+                Exception
+            ) as exc:  # noqa: BLE001 - show the reason instead of a stack trace
+                st.error(f"No pair found: {exc}")
+
+    found = st.session_state.get("found_pair")
+    if found is None:
+        st.info("Nothing has run yet. Papers appear here after Bond's search.")
+        return
+    st.markdown(
+        f"**Bond returned {found.candidates} arXiv papers. These two disagree:**"
+    )
+    for s in found.stances:
+        st.markdown(
+            f"**{s.stance}** · [{found.titles[s.paper]}]({found.urls[s.paper]}) · arXiv {s.paper}"
+        )
+        st.markdown(f"> {s.quote}")
+    st.caption(found.reason)
+
+    if st.button("Run audit on this pair", type="primary") and _allowed(passcode):
+        with st.spinner(
+            "Reading both papers and reproducing them; a new pair takes several minutes..."
+        ):
             try:
                 st.session_state.real_pair = real_pair.run(
-                    papers=(a.strip(), b.strip()), runs=settings.max_runs, confirm=not settings.public
+                    papers=found.papers,
+                    query=found.query,
+                    runs=settings.max_runs,
+                    confirm=not settings.public,
                 )
-            except Exception as exc:  # noqa: BLE001 - show the reason instead of a stack trace
+            except (
+                Exception
+            ) as exc:  # noqa: BLE001 - show the reason instead of a stack trace
                 st.error(f"Audit stopped: {type(exc).__name__}: {exc}")
-    report = st.session_state.get("real_pair") or _latest()
+    report = st.session_state.get("real_pair")
     if report is None:
-        st.info("Press Run audit. With the committed extractions this needs no model key.")
         return
     (st.success if report.deciding else st.warning)(report.verdict)
-    st.caption(f"{report.runs_used} runs · Bond: {report.bond.get('status')}")
+    scored = (
+        f"scored against a hand-checked answer ({report.truth})"
+        if report.truth
+        else "no hand-checked answer"
+    )
+    st.caption(
+        f"{report.runs_used} runs · Bond: {report.bond.get('status')} · {scored}"
+    )
     st.dataframe(
         pd.DataFrame(
             [
@@ -46,7 +98,9 @@ def show_real_pair() -> None:
                     "paper": r.paper,
                     "title": r.title,
                     "reported": f"{r.outcome} at {r.outcome_noise}",
-                    "outcome from": "text" if r.outcome_source == "text" else "reviewer",
+                    "outcome from": (
+                        "text" if r.outcome_source == "text" else "reviewer"
+                    ),
                     "tier": r.tier.replace("_", " "),
                     "seeds recovered": r.recovered,
                 }
@@ -64,7 +118,9 @@ def show_real_pair() -> None:
                         "group": g,
                         "recovering paper after flip": e["recovered_after_flip"],
                         "effect": e["effect"],
-                        "failing paper after reverse flip": e["failing_paper_recovered_after_flip"],
+                        "failing paper after reverse flip": e[
+                            "failing_paper_recovered_after_flip"
+                        ],
                     }
                     for g, e in report.attribution.items()
                 ]
