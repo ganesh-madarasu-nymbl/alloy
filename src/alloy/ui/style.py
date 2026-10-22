@@ -118,7 +118,7 @@ def hero(inv, *, model: str, bond_live: bool) -> None:
       <div class="al-top">
         <div class="al-brand"><span class="al-mark"><i>06</i>Ay<u>alloy</u></span>
           <div><div class="al-name">Alloy</div>
-          <div class="al-sub">An auditor for published results that disagree</div></div></div>
+          <div class="al-sub">Fuses papers that disagree into a method stronger than either</div></div></div>
         <div class="al-status">
           <span class="al-pill"><span class="al-dot {'on' if bond_live else ''}"></span>Bond
             {'connected' if bond_live else 'offline'}</span>
