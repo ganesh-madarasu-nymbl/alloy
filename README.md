@@ -161,6 +161,15 @@ with no keys, in about a minute:
 7. **Cause.** Alloy flips each group of settings (noise level, noise placement, record, library,
    regression) from the recovering paper to the failing one and measures the drop in recovery.
    Locally it also runs the reverse flip.
+8. **Fix, verify, remember.** Once a cause is found, Alloy races four methods (standard, smoothed,
+   ensemble, and smoothed plus ensemble SINDy) at three thresholds each on the failing paper's setup,
+   on the same seeds, dropping clear losers. It then checks the winner against the best standard
+   SINDy on three unseen trajectories with the noise nudged by 25% either way, and writes the losers
+   to the Dead-End Map.
+
+On Kaheman's setup, smoothed plus ensemble SINDy cuts coefficient error from 0.69 (best standard
+SINDy) to 0.19 and beats it on 3 of 3 unseen trajectories. No method recovers the exact Lorenz terms
+at that noise, and the audit says so. The full audit takes 188 runs locally and 117 in public mode.
 
 Result (22 Oct 2026, 152 runs): both papers reproduce under labelled assumptions. Moving Brunton's
 noise placement to Kaheman's (state noise with finite differences) drops recovery from 3 of 3
