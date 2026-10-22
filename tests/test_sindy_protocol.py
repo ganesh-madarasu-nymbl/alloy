@@ -121,12 +121,15 @@ BRUNTON_TABLE_4 = {
 }
 
 
-def test_brunton_table_4_recovers_with_or_without_ridge():
-    # Brunton's Code 1 uses plain least squares. pysindy's default ridge (0.05) also recovers
-    # this setup; an earlier claim that it fails did not reproduce on Windows or Linux CI.
-    for ridge in (0.0, 0.05):
-        metrics, _ = run(ridge=ridge, **BRUNTON_TABLE_4)
+def test_brunton_table_4_recovers_without_ridge_and_mostly_with_it():
+    # Brunton's Code 1 uses plain least squares, which recovers on every seed. pysindy's default
+    # ridge (0.05) is borderline: on macOS (Accelerate BLAS) seeds 0 and 5 of 0-7 miss, while
+    # seed 0 recovers on Windows and Linux CI. So we only claim it recovers on most seeds.
+    for seed in range(8):
+        metrics, _ = run(ridge=0.0, seed=seed, **BRUNTON_TABLE_4)
         assert metrics["recovered"] == 1.0 and metrics["coef_error"] < 0.01
+    with_ridge = [run(ridge=0.05, seed=seed, **BRUNTON_TABLE_4)[0]["recovered"] for seed in range(8)]
+    assert sum(with_ridge) >= 5
 
 
 def test_bundle_rejects_negative_ridge():

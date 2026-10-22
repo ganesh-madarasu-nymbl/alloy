@@ -25,7 +25,7 @@ comparable. The question is which setting decides the outcome.
 |---|---|
 | Brunton protocol, variance 1 on exact derivatives, ridge 0 | yes (coefficient error 0.0001) |
 | Same, variance 10 | yes (0.0002) |
-| Same, with pysindy's default ridge 0.05 | yes |
+| Same, with pysindy's default ridge 0.05 | yes on most seeds (borderline) |
 | **Brunton record, variance 1 moved onto the states, finite differences** | **0 of 5 seeds** (error 0.51 to 0.95) |
 | Kaheman protocol, 8% as Eq. 19's variance ratio | 0 of 5 datasets |
 | Kaheman protocol, 8% as a standard-deviation ratio | 1 of 5 (2%: 5, 4%: 1, 6%: 5, 10% and 12%: 0) |
@@ -48,10 +48,11 @@ true terms; the paper does not say how a threshold is picked.
    an exact limit. Section 4.4 uses a third
    convention (noise multiplied by percentage x var(signal)). We report this as consistent with a
    standard-deviation ratio, not as proof.
-4. **The ridge penalty does not change Brunton's result.** An earlier version of this review said
-   pysindy's default ridge penalty (0.05) breaks recovery. The rerun recovers the equations with
-   ridge 0.05 as well, on Windows and on the Linux CI runner, so we dropped that finding. The
-   probe still uses ridge 0 to match the paper's Code 1.
+4. **The ridge penalty barely matters for Brunton's result.** An earlier version of this review
+   said pysindy's default ridge penalty (0.05) breaks recovery. The rerun recovers the equations
+   with ridge 0.05 on Windows and on the Linux CI runner, so we dropped that finding. It is
+   borderline, though: on macOS ridge 0.05 recovers 6 of 8 seeds, while ridge 0 recovers all 8.
+   The probe uses ridge 0 to match the paper's Code 1.
 
 ## Why the pair is still not "eligible"
 
