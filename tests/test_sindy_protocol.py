@@ -121,13 +121,12 @@ BRUNTON_TABLE_4 = {
 }
 
 
-def test_plain_least_squares_recovers_brunton_table_4():
-    # Brunton's Code 1 uses plain least squares; pysindy's default ridge penalty
-    # drowns the small linear terms in an unnormalised degree-5 library.
-    plain, _ = run(ridge=0.0, **BRUNTON_TABLE_4)
-    default, _ = run(**BRUNTON_TABLE_4)
-    assert plain["recovered"] == 1.0 and plain["coef_error"] < 0.01
-    assert default["recovered"] == 0.0
+def test_brunton_table_4_recovers_with_or_without_ridge():
+    # Brunton's Code 1 uses plain least squares. pysindy's default ridge (0.05) also recovers
+    # this setup; an earlier claim that it fails did not reproduce on Windows or Linux CI.
+    for ridge in (0.0, 0.05):
+        metrics, _ = run(ridge=ridge, **BRUNTON_TABLE_4)
+        assert metrics["recovered"] == 1.0 and metrics["coef_error"] < 0.01
 
 
 def test_bundle_rejects_negative_ridge():

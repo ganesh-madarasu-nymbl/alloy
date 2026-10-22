@@ -1,7 +1,8 @@
 # Real paper pair: Brunton 2016 vs Kaheman 2020
 
 Reviewed 21 Oct 2026. Sources and blockers are in `data/evidence/sindy_review.json`; every number
-below comes from `uv run python scripts/real_pair_probe.py` (about two minutes).
+below comes from `uv run python scripts/real_pair_probe.py` (about five minutes). Santosh reran the
+probe on 21 Oct 2026 and corrected the numbers and finding 4 to match.
 
 ## The disagreement
 
@@ -22,12 +23,12 @@ comparable. The question is which setting decides the outcome.
 
 | Run | Recovered |
 |---|---|
-| Brunton protocol, variance 1 on exact derivatives, ridge 0 | yes (coefficient error 0.0002) |
-| Same, variance 10 | yes (0.0006) |
-| Same, with pysindy's default ridge 0.05 | no |
-| **Brunton record, variance 1 moved onto the states, finite differences** | **0 of 5 seeds** (error 0.50 to 1.02) |
+| Brunton protocol, variance 1 on exact derivatives, ridge 0 | yes (coefficient error 0.0001) |
+| Same, variance 10 | yes (0.0002) |
+| Same, with pysindy's default ridge 0.05 | yes |
+| **Brunton record, variance 1 moved onto the states, finite differences** | **0 of 5 seeds** (error 0.51 to 0.95) |
 | Kaheman protocol, 8% as Eq. 19's variance ratio | 0 of 5 datasets |
-| Kaheman protocol, 8% as a standard-deviation ratio | 1 of 5 (all 5 at 6%, none from 10%) |
+| Kaheman protocol, 8% as a standard-deviation ratio | 1 of 5 (2%: 5, 4%: 1, 6%: 5, 10% and 12%: 0) |
 | Kaheman record, 8% variance ratio moved onto exact derivatives | 2 of 5 |
 
 Kaheman's recovery counts a dataset as recovered if any of the 100 thresholds yields exactly the
@@ -41,12 +42,16 @@ true terms; the paper does not say how a threshold is picked.
 2. **Record length is secondary.** On Kaheman's short record, moving noise to the derivatives
    only lifts recovery from 0 to 2 of 5 datasets.
 3. **Kaheman's noise unit is ambiguous.** Eq. 19 defines the noise level as a variance ratio, but
-   under that reading original SINDy fails from about 0.5%, not 8%. Read as a standard-deviation
-   ratio, the reproduced limit (6%) is close to the reported 8%. Section 4.4 uses a third
+   under that reading recovery falls to 2 of 5 datasets at 0.5% and 0 of 5 from 1%, far below 8%.
+   Read as a standard-deviation ratio, recovery ends by 10%, near the reported 8%. With five
+   datasets the curve is not monotonic (4%: 1 of 5, 6%: 5 of 5), so the probe does not pin down
+   an exact limit. Section 4.4 uses a third
    convention (noise multiplied by percentage x var(signal)). We report this as consistent with a
    standard-deviation ratio, not as proof.
-4. **Brunton's result needs plain least squares.** pysindy's default ridge penalty (0.05) loses the
-   small linear terms in an unnormalised degree-5 library. The paper's Code 1 uses plain least squares.
+4. **The ridge penalty does not change Brunton's result.** An earlier version of this review said
+   pysindy's default ridge penalty (0.05) breaks recovery. The rerun recovers the equations with
+   ridge 0.05 as well, on Windows and on the Linux CI runner, so we dropped that finding. The
+   probe still uses ridge 0 to match the paper's Code 1.
 
 ## Why the pair is still not "eligible"
 
