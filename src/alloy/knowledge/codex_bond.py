@@ -8,6 +8,9 @@ import asyncio
 import json
 from pathlib import Path
 
+# app-server writes one JSON message per line; Bond results exceed asyncio's 64 KiB default.
+STREAM_LIMIT = 16 * 1024 * 1024
+
 
 class BondConnectionError(RuntimeError):
     pass
@@ -28,6 +31,7 @@ class CodexBond:
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
+                limit=STREAM_LIMIT,
             )
             await self.request("initialize", {
                 "clientInfo": {"name": "alloy-bond", "version": "0.1.0"},
