@@ -2,6 +2,8 @@
 
 Alloy audits answers about why published results disagree. An AI agent can find a likely cause in a handful of runs. Alloy checks that answer: it reruns each paper's setting, tests one condition at a time, compares methods on fixed seeds, tries cases neither paper covered, and writes a report a reviewer can rerun line by line. Ganesh and Santosh are building it for the OSI Hackathon Boston (October 2026), with the Valency Bond MCP as the literature source.
 
+![Alloy's results view: pipeline, finding, metrics and tabs](docs/images/alloy-ui.png)
+
 A researcher gives Alloy a goal, a supported simulator and a compute budget. Alloy returns an `audit.md` with:
 
 - the claims, with the conflicts it set aside and why
@@ -11,23 +13,70 @@ A researcher gives Alloy a goal, a supported simulator and a compute budget. All
 - the winner's results on unseen cases
 - a replay notebook and a log of what failed
 
-`uv run alloy audit --scenario short_record` runs a plain Claude agent and compares its cause and method with Alloy's investigation, adding a "second opinion" table to the report. This command uses Claude API inference; `demo` and `bench --alloy-only` run offline.
-
 ## Why an auditor
 
 We first set out to show that Alloy finds good method combinations with fewer experiments than a plain agent. Our own benchmark says no: on five scenarios, Claude Sonnet 5.5 found every cause in 4 to 14 runs, against Alloy's 17 to 45 (details below). Speed is not where Alloy helps. It helps with trust: the agent's answer comes from a few lucky seeds and its prior knowledge, while Alloy's comes with controlled evidence you can replay. In the short_record audit, both named the same method, and Alloy added that the runner-up sits within seed noise of it.
 
-## Quick start
+## Quick start: no keys needed
+
+Needs Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
+git clone https://github.com/santoshnymbl/alloy.git && cd alloy
 uv sync
-uv run alloy demo            # offline: seed claims, no API calls
-uv run pytest -q
-uv run streamlit run ui/app.py
+uv run streamlit run ui/app.py   # open http://localhost:8501 and press Investigate
 ```
 
-Offline mode reads synthetic claims in `data/seed/lorenz_claims.json` and runs locally.
-Their placeholder quotations are not evidence of a published disagreement.
+The default **Synthetic demonstration** runs the whole pipeline locally in about a minute: no
+account, API key or network call. The same run from the terminal:
+
+```bash
+uv run alloy demo     # 34 simulations, writes runs/<id>/audit.md and replay.ipynb
+uv run pytest -q
+```
+
+Offline mode reads synthetic claims in `data/seed/lorenz_claims.json`. Their placeholder
+quotations are labeled in the UI and are not evidence of a published disagreement.
+
+The UI has four modes:
+
+| Mode | What it does | Needs |
+|---|---|---|
+| Synthetic demonstration | Full pipeline on seed claims; toggle **Live literature** to search Bond instead | nothing (live: keys below) |
+| Reviewed literature | Shows reviewed primary papers and why each cannot yet be reproduced exactly | nothing |
+| Collection campaign | Plans and runs up to three discrepancies under one shared budget | nothing |
+| Saved investigation / campaign | Opens an exported JSON without rerunning anything | nothing |
+
+## Live literature: free keys
+
+Live mode searches real papers through Bond and uses an LLM to extract claims, pick methods
+and referee the verdict. Both services have free tiers; nothing here needs a paid account.
+
+1. **Model.** Create a free key at [console.groq.com](https://console.groq.com/keys). Alloy
+   defaults to `openai/gpt-oss-120b` through Groq's OpenAI-compatible API (free tier: 1,000
+   requests and about 200k tokens a day). Any OpenAI-compatible endpoint works through
+   `ALLOY_LLM_BASE_URL`; set `ALLOY_MODEL` to a `claude-*` model and `ANTHROPIC_API_KEY` to use Claude.
+2. **Bond.** Sign in to Valency's MCP server (`https://mcp.valency.io/`) with any MCP client
+   that supports OAuth, and copy the access token, refresh token and client ID. Alloy calls Bond
+   over HTTP and renews the token itself when it expires. Alternatively set
+   `ALLOY_BOND_BACKEND=codex` to reuse an existing `codex mcp login valency`.
+3. Copy `.env.example` to `.env` and fill in `GROQ_API_KEY` and the `VALENCY_*` values.
+
+```bash
+uv run alloy check                       # model, Bond backend, whether Bond is configured
+uv run alloy bond-check                  # lists Bond's tools; no model call
+uv run alloy bond-search "sparse identification of nonlinear dynamics Lorenz noise" --limit 5
+uv run alloy demo --online --referee     # search, extract, investigate, referee
+```
+
+`bond-search` caches raw results and abstracts in `cache/`. Abstracts are not full-text
+evidence of a disagreement, missing passages stay missing, and network or sign-in failures
+exit with an error rather than substituting demo papers. Extracted quotes are snapped to the
+source sentence they came from, and claims whose quote is not in the source are dropped.
+
+`uv run alloy audit --scenario short_record` runs a plain agent on the configured model and
+compares its cause and method with Alloy's investigation, adding a "second opinion" table to
+the report.
 
 ### Audit a collection under one budget
 
@@ -41,72 +90,25 @@ The planner accepts at most 20 canonical works and 100 claims, screens every pai
 and queues up to three discrepancies with visible ranking reasons. One run/time
 budget covers the entire queue. Failed simulations count; insufficient budgets
 leave pairs deferred, and uncertain accounting stops further launches. The current
-campaign supports Lorenz/PySINDy; coatings remains a separate command.
+campaign supports Lorenz/PySINDy; coatings remains a separate command. Every
+conclusion applies to its own pair. See the [implementation contract](docs/multi-paper-implementation.md)
+and [acceptance ledger](docs/multi-paper-handoff.md).
 
-Choose **Collection campaign** in the UI to preview the queue and run it, or
-**Saved campaign** to inspect an exported `campaign.json` without execution or
-reading uploaded paths. Campaign exports embed child investigations; transfer raw
-run folders separately for replay notebooks. Every conclusion applies to its own
-pair. Three selected audits can remain partial under 60 total runs.
-
-The implementation is committed locally; actual simulations, browser/replay checks
-and publication remain blocked in this session. The reviewed bundle has zero
-eligible pairs. See the [detailed implementation contract](docs/multi-paper-implementation.md)
-and [current acceptance ledger](docs/multi-paper-handoff.md).
-
-For Bond discovery using your existing Codex login, install the Valency plugin and complete
-`codex mcp login valency`. Copy `.env.example` to `.env` (preserve any existing settings), then run:
-
-```bash
-uv run alloy bond-check
-uv run alloy bond-search "sparse identification of nonlinear dynamics Lorenz noise" --limit 5
-```
-
-These two commands reuse Codex's OAuth storage through its installed app-server protocol.
-They do not copy tokens or start a model turn. Discovery requires a local Codex version
-supporting MCP tool calls through app-server. `bond-check` reports the available tools
-and authentication/runtime status; a successful `bond-search` verifies a real tool call.
-The search caches raw results and metadata/abstracts in `cache/`; abstracts are not full-text
-evidence of a disagreement. Missing passages stay missing. Runtime, network and sign-in
-failures exit with an error rather than substituting demo papers.
-
-If a native MCP client already returned a search response, import that JSON directly:
-
-```bash
-uv run alloy bond-import /path/to/result.json --query "the exact original query" --limit 5
-uv run alloy evidence-check
-```
-
-Use the original search query and limit so cached replay represents the original request.
-Import retains the raw response and labels normalized passages as metadata/abstracts.
-It needs no subprocess, model call or credentials copied into Alloy.
+### Reviewed literature
 
 `data/evidence/sindy_review.json` contains three reviewed primary sources, source locations,
 short excerpts, stated settings and explicit reproduction gaps. It currently contains **no
 eligible cross-paper claim pair**: the papers differ from the adapter in noise construction,
 feature library, method implementation or measured quantity. `alloy demo --evidence <bundle>`
 validates the bundle and refuses to run when no eligible pair exists. It never substitutes
-synthetic claims. Exact literature reproduction requires all adapter settings to be explicit;
-the separate synthetic hidden-setting scenario explores assumptions rather than author facts.
+synthetic claims. `uv run alloy evidence-check` lists the blockers per paper.
 
-In the UI, choose **Reviewed literature** to inspect those gaps, or **Saved investigation**
-to upload a previously exported `runs/<id>/investigation.json`. Viewing saved results does
-not run experiments. The result view includes skipped pairs, controlled changes, unstated
-setting hypotheses, mean/worst/standard error, unseen cases, method provenance and filterable
-failure history. Investigation JSON, graph and Markdown audit exports are available; replay notebooks require their local
-run folder. See [the lane handoff](docs/first-lane-handoff.md) for verification limits.
+If a native MCP client already returned a search response, import it with
+`uv run alloy bond-import /path/to/result.json --query "the exact original query" --limit 5`.
 
-For the full online investigation, also configure your Claude API access. With
-`ALLOY_BOND_BACKEND=codex`, Bond discovery uses Codex OAuth; claim extraction, method selection
-and the referee still use Claude API calls. The optional `ALLOY_BOND_BACKEND=claude` path
-uses the hosted Claude MCP connector and requires its own server authorization.
+### Replay
 
-```bash
-uv run alloy check           # shows model and whether Bond is configured
-uv run alloy demo --online --referee
-```
-
-To check a run replays exactly, execute its notebook:
+Every run folder holds a notebook that reruns its experiments:
 
 ```bash
 uv run jupyter nbconvert --to notebook --execute runs/<id>/replay.ipynb --output executed.ipynb
@@ -118,7 +120,7 @@ On 21 Oct 2026 a demo run's 34 experiments replayed with identical metrics.
 
 | Stage | What runs | Code |
 |---|---|---|
-| 1 Search | Bond through Codex OAuth or the Claude MCP connector, cached to `cache/` | `knowledge/bond.py` |
+| 1 Search | Bond over HTTP (OAuth token) or Codex OAuth, cached to `cache/` | `knowledge/bond.py`, `knowledge/http_bond.py` |
 | 2 Understand | Claim extraction and the evidence graph | `knowledge/extract.py`, `knowledge/graph.py` |
 | 3 Investigate | Condition Check, then a rerun at each claim's conditions | `knowledge/conditions.py`, `agent/loop.py` |
 | 4 Improve | Method search, then a controlled comparison | `knowledge/methods.py`, `experiments/compare.py` |
@@ -200,14 +202,15 @@ Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Cl
 ## Open work
 
 - [x] Native-session Bond search, raw-result ingestion, deduplication and cache replay
-- [ ] Verify the standalone Codex app-server bridge with a live Bond search
+- [x] Live Bond search over HTTP with token renewal; claim extraction on free Groq GPT-OSS-120B
 - [ ] Find a reviewed eligible real-paper pair; preserve source/adapter mismatch evidence
 - [x] Baseline prompt includes every Claim field; historical results still need fair reruns
 - [x] `experiments/adapters/tmm_adapter.py`: cooling coatings (stretch)
 - [x] UI: condition differences, citation trail, saved records and failure history
 - [x] Bounded collection planner, shared-budget campaign records and saved campaign UI
-- [ ] Locked dependency install, complete simulation checks and browser walkthrough
-- [ ] Publish Ganesh's local integration branch through the authorized Work connection
+- [x] Research-style Streamlit UI
+- [ ] Rerun the plain-agent benchmark on GPT-OSS-120B
+- [ ] Public Streamlit Cloud deployment
 - [ ] Record the backup demo video from cached runs
 
 ## Adding a scientific task
