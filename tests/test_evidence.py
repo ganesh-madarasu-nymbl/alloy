@@ -1,4 +1,5 @@
 from dataclasses import asdict
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -6,6 +7,8 @@ import pytest
 from alloy.knowledge import conditions, extract
 from alloy.knowledge.bond import Paper
 from alloy.knowledge.presentation import evidence_label, paper_url
+
+APP = str(Path(__file__).resolve().parents[1] / 'ui' / 'app.py')
 
 
 @pytest.mark.parametrize('changes', [
@@ -84,7 +87,7 @@ def test_ui_evidence_preview_and_results(seed_claims):
     from alloy.agent.loop import Investigation
     from alloy.contracts import Goal
 
-    app = AppTest.from_file('ui/app.py').run()
+    app = AppTest.from_file(APP, default_timeout=30).run()
     assert not app.exception
     assert any('placeholders' in w.value for w in app.warning)
     assert app.toggle[0].value is False

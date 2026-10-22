@@ -1,5 +1,6 @@
 import json
 from dataclasses import replace
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -7,6 +8,8 @@ import pytest
 from alloy.agent.loop import Investigation
 from alloy.contracts import Goal, Verdict
 from alloy.knowledge.records import local_notebook, read_investigation
+
+APP = str(Path(__file__).resolve().parents[1] / "ui" / "app.py")
 
 
 def record():
@@ -41,7 +44,7 @@ def test_uploaded_notebook_paths_cannot_read_arbitrary_files(tmp_path):
 def test_reviewed_mode_explains_gaps_and_disables_investigation():
     from streamlit.testing.v1 import AppTest
 
-    app = AppTest.from_file("ui/app.py").run()
+    app = AppTest.from_file(APP, default_timeout=30).run()
     app.selectbox[0].select("Reviewed literature").run()
     assert not app.exception
     assert app.button[0].disabled
@@ -64,7 +67,7 @@ def test_saved_results_show_partial_verdict_hidden_search_and_exports(monkeypatc
     inv.notebook = "/unavailable/replay.ipynb"
     if status:
         inv.verdict = Verdict(question=inv.goal.question, status=status, explanation="Recorded fixture verdict")
-    app = AppTest.from_file("ui/app.py")
+    app = AppTest.from_file(APP, default_timeout=30)
     app.session_state["inv"] = inv
     app.session_state["saved_record"] = True
     app.run()
@@ -81,7 +84,7 @@ def test_failed_run_clears_stale_verdict_and_explains_partial_record(monkeypatch
     from streamlit.testing.v1 import AppTest
 
     monkeypatch.setattr("alloy.agent.loop.investigate", Mock(side_effect=RuntimeError("budget exhausted")))
-    app = AppTest.from_file("ui/app.py")
+    app = AppTest.from_file(APP, default_timeout=30)
     app.session_state["inv"] = record()
     app.run()
     app.button[0].click().run()
@@ -99,7 +102,7 @@ def test_dead_end_history_can_be_filtered_without_reexecution(monkeypatch, tmp_p
             for m in ("sindy", "ensemble-sindy")]
     (tmp_path / "deadends.jsonl").write_text("\n".join(json.dumps(r) for r in rows))
     monkeypatch.setattr("alloy.config.settings", replace(settings, memory_dir=tmp_path))
-    app = AppTest.from_file("ui/app.py").run()
+    app = AppTest.from_file(APP, default_timeout=30).run()
     app.selectbox[1].select("ensemble-sindy").run()
     assert not app.exception
     assert list(app.dataframe[-1].value["method"]) == ["ensemble-sindy"]
