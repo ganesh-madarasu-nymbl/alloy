@@ -138,7 +138,11 @@ def _run(inv, offline, given_claims, seed_claims, runner, adapter, deadends, run
         inv.claims = load_seed(seed_claims)
     else:
         for paper in bond.search(goal.question):
-            inv.claims += extract_claims(paper, adapter.condition_keys, start=len(inv.claims) + 1)
+            # A paper whose claims fail the evidence gates is set aside, not allowed to end the search.
+            try:
+                inv.claims += extract_claims(paper, adapter.condition_keys, start=len(inv.claims) + 1)
+            except ValueError as e:
+                inv.skipped.append(f"{paper.id}: claims rejected ({e})")
     graph = EvidenceGraph()
     graph.add_claims(inv.claims)
     graph.save(run_dir / "graph.json")
