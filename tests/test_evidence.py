@@ -87,7 +87,11 @@ def test_ui_evidence_preview_and_results(seed_claims):
     from alloy.agent.loop import Investigation
     from alloy.contracts import Goal
 
-    app = AppTest.from_file(APP, default_timeout=30).run()
+    app = AppTest.from_file(APP, default_timeout=30)
+
+    app.query_params["demo"] = "1"
+
+    app.run()
     assert not app.exception
     assert any('placeholders' in w.value for w in app.warning)
     assert app.toggle[0].value is False

@@ -38,7 +38,11 @@ def test_cli_plan_only_never_executes(monkeypatch, capsys):
 def test_collection_preview_reviewed_gaps_and_stale_state():
     from streamlit.testing.v1 import AppTest
 
-    app = AppTest.from_file(APP, default_timeout=30).run()
+    app = AppTest.from_file(APP, default_timeout=30)
+
+    app.query_params["demo"] = "1"
+
+    app.run()
     app.selectbox[0].select("Collection campaign").run()
     assert not app.exception
     assert any("3 queued audits" in c.value for c in app.caption)
@@ -59,7 +63,9 @@ def test_saved_campaign_inspection_and_pair_selection_never_execute(monkeypatch,
     monkeypatch.setattr("alloy.agent.loop.investigate", forbidden)
     monkeypatch.setattr("alloy.agent.campaign.run_campaign", forbidden)
     monkeypatch.setattr("alloy.knowledge.records.local_notebook", forbidden)
-    app = AppTest.from_file(APP, default_timeout=30).run()
+    app = AppTest.from_file(APP, default_timeout=30)
+    app.query_params["demo"] = "1"
+    app.run()
     app.selectbox[0].select("Saved campaign").run()
     app.session_state["campaign"] = campaign
     app.run()
@@ -80,7 +86,9 @@ def test_new_ui_launch_passes_one_total_budget(monkeypatch, tmp_path):
         captured.append(goal.budget.runs)
         return run_campaign(goal, plan, run_root=tmp_path)
     monkeypatch.setattr("alloy.ui.collection.run_campaign", launch)
-    app = AppTest.from_file(APP, default_timeout=30).run()
+    app = AppTest.from_file(APP, default_timeout=30)
+    app.query_params["demo"] = "1"
+    app.run()
     app.selectbox[0].select("Collection campaign").run()
     app.button[0].click().run()
     assert not app.exception

@@ -71,6 +71,7 @@ def _app(monkeypatch, tmp_path, inv, **overrides):
     )
     monkeypatch.setattr("alloy.llm.configured", lambda: True)
     app = AppTest.from_file(APP, default_timeout=30)
+    app.query_params["demo"] = "1"
     app.session_state["inv"] = inv
     app.session_state["saved_record"] = True
     app.run()
