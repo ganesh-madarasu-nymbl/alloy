@@ -127,6 +127,49 @@ def show_real_pair() -> None:
             ),
             hide_index=True,
         )
+    if report.fix:
+        fix = report.fix
+        st.markdown(f"**Fixing the failing setup ({fix.setup}): improve, verify, remember**")
+        (st.success if fix.verified else st.info)(fix.summary)
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "method": a.label,
+                        "coefficient error": round(a.mean_error, 3),
+                        "± stderr": round(a.stderr, 3),
+                        "seeds": a.seeds,
+                        "recovered": a.recovered,
+                        "status": "winner"
+                        if a.label == fix.winner
+                        else "tied"
+                        if a.label in fix.ties
+                        else "dead end"
+                        if a.dropped_after is not None
+                        else "kept",
+                    }
+                    for a in fix.arms
+                ]
+            ),
+            hide_index=True,
+        )
+        if fix.unseen:
+            st.caption(f"Unseen trajectories: held-out error, {fix.winner} vs {fix.baseline}")
+            st.dataframe(
+                pd.DataFrame(
+                    [
+                        {
+                            "start": str(list(u["start"])),
+                            "noise": round(u["noise"], 3),
+                            "winner": u.get(fix.winner),
+                            "standard SINDy": u.get(fix.baseline),
+                            "winner better": u["winner_better"],
+                        }
+                        for u in fix.unseen
+                    ]
+                ),
+                hide_index=True,
+            )
     markdown = real_pair.to_markdown(report)
     with st.expander("Full audit: every setting, its source and quote"):
         st.markdown(markdown)

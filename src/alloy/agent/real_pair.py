@@ -14,6 +14,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from alloy.agent.real_fix import FixResult, fix
 from alloy.config import settings
 from alloy.contracts import Budget, ExperimentSpec
 from alloy.experiments.export import to_notebook
@@ -85,6 +86,7 @@ class RealPairReport(BaseModel):
     deciding: str | None = None
     verdict: str = ""
     truth: str | None = None
+    fix: FixResult | None = None
     runs_used: int = 0
     notebook: str | None = None
 
@@ -279,6 +281,8 @@ def run(
             best = max(report.attribution, key=lambda g: report.attribution[g]["effect"], default=None)
             if best and report.attribution[best]["effect"] >= 0.5:
                 report.deciding = best
+                # Stages 4 to 6: improve on the failing setup, verify on unseen cases, keep the losers.
+                report.fix = fix(runner, bad.paper, bad.conditions, settings.memory_dir / "deadends.jsonl")
         report.verdict = _verdict(report)
     except BudgetExceeded as exc:
         report.results, report.verdict = results, f"Stopped early: {exc}"
@@ -372,6 +376,32 @@ def to_markdown(report: RealPairReport) -> str:
             f"| {e['failing_paper_recovered_after_flip']:.2f} |"
             for g, e in report.attribution.items()
         ] + [""]
+    if report.fix:
+        f = report.fix
+        out += [f"## Fixing the failing setup ({f.setup})", "", f.summary, ""]
+        out += ["| Method | Coefficient error | Seeds | Recovered | Status |", "|---|---|---|---|---|"]
+        for a in f.arms:
+            status = (
+                "winner"
+                if a.label == f.winner
+                else "tied"
+                if a.label in f.ties
+                else (f"dropped after {a.dropped_after}" if a.dropped_after is not None else "kept")
+            )
+            error = f"{a.mean_error:.3f} ± {a.stderr:.3f}"
+            out.append(f"| {a.label} | {error} | {a.seeds} | {a.recovered:.2f} | {status} |")
+        out.append("")
+        if f.unseen:
+            out += [f"Unseen trajectories (held-out error, {f.winner} vs {f.baseline}):", ""]
+            for row in f.unseen:
+                c, b = row.get(f.winner), row.get(f.baseline)
+                out.append(
+                    f"- start {list(row['start'])}, noise {row['noise']:.3g}: "
+                    f"{'n/a' if c is None else f'{c:.3f}'} vs {'n/a' if b is None else f'{b:.3f}'}"
+                )
+            out.append("")
+        if f.dead_ends:
+            out += ["Dead ends kept in the Dead-End Map:", ""] + [f"- {d}" for d in f.dead_ends] + [""]
     refs = bibtex(report.papers, fetch=True)
     if refs:
         out += [

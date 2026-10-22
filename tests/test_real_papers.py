@@ -126,3 +126,42 @@ def test_reproduce_tiers_and_attribution_on_a_quick_pair(tmp_path, monkeypatch):
     assert [r.tier for r in results] == ["reproduced_under_assumptions"] * 2  # threshold is unstated
     effects = real_pair.attribute(runner, *results)
     assert max(effects, key=lambda g: effects[g]["effect"]) == "noise placement"
+
+
+HARD = dict(
+    system="lorenz",
+    x0=[-8.0, 8.0, 27.0],
+    dt=0.01,
+    t_end=10.0,
+    poly_degree=2,
+    noise_type="gaussian",
+    noise_location="state",
+    derivative="numeric",
+    noise=0.3,
+    noise_scale="state_std",
+)
+
+
+def test_fix_races_methods_checks_unseen_cases_and_keeps_dead_ends(tmp_path, monkeypatch):
+    from alloy.agent import real_fix
+
+    monkeypatch.setattr(real_fix, "METHODS", ("sindy", "smoothed-ensemble-sindy"))
+    monkeypatch.setattr(real_fix, "THRESHOLDS", (0.1, 0.5))
+    runner = Runner(Budget(runs=60, minutes=5), tmp_path / "runs")
+    memory = tmp_path / "deadends.jsonl"
+    out = real_fix.fix(runner, "arxiv:hard", HARD, memory)
+    assert len(out.arms) == 4 and out.winner in {a.label for a in out.arms}
+    assert out.baseline and out.baseline.startswith("sindy")
+    if not out.winner.startswith("sindy"):
+        assert len(out.unseen) == 3 and "unseen trajectories" in out.summary
+    dropped = [a for a in out.arms if a.dropped_after is not None]
+    assert len(out.dead_ends) == len(dropped)
+    if dropped:
+        assert memory.exists() and "lost the method race" in memory.read_text(encoding="utf-8")
+
+
+def test_fix_reports_no_winner_when_budget_runs_out(tmp_path):
+    from alloy.agent import real_fix
+
+    out = real_fix.fix(Runner(Budget(runs=3, minutes=5), tmp_path), "arxiv:hard", HARD)
+    assert out.winner is None and "budget" in out.summary and not out.verified
