@@ -9,13 +9,10 @@ from alloy.agent import pair_finder, real_pair
 from alloy.config import settings
 from alloy.ui.limits import live_runs_left, live_unlocked, record_live_run
 
-FIELDS = {
-    "Equations from data": None,
-    "Cooling coatings": "Alloy reruns thin-film coatings with tmm from the command line (`alloy coatings`). "
-    "Real-paper audits for coatings come next.",
-    "Any other field": "Bond searches every field, but Alloy can only rerun a field it has an adapter for. "
-    "Today that is equations from data and thin-film coatings.",
-}
+SCOPE = (
+    "Alloy reruns papers that discover equations from data. "
+    "A thin-film coatings adapter runs from the command line (`alloy coatings`)."
+)
 
 
 @dataclass(frozen=True)
@@ -24,6 +21,7 @@ class Example:
     question: str
     saved: str | None  # a committed audit in data/literature/examples, shown without a passcode
     status: str
+    pair: tuple[str, str] | None = None  # a fixed pair with committed extractions, rerun live without a model call
 
 
 EXAMPLES = (
@@ -40,23 +38,18 @@ EXAMPLES = (
         "Checked: honest stop",
     ),
     Example(
-        "Ensembles",
-        "Does ensemble bagging make SINDy robust to noise and short records?",
+        "Run it live",
+        "Does SINDy still recover the Lorenz equations when the noise is on the measurements?",
         None,
-        "Live: needs the passcode",
-    ),
-    Example(
-        "Thresholds",
-        "Does the choice of sparsity threshold explain different SINDy results?",
-        None,
-        "Live: needs the passcode",
+        "Live: reruns a fixed pair, no passcode",
+        ("arxiv:1509.03580", "arxiv:2009.08810"),
     ),
 )
 
 
-def _allowed(passcode: str) -> bool:
+def _allowed(passcode: str, needs_passcode: bool = True) -> bool:
     """Same rule as the other live modes: the passcode, then the daily allowance."""
-    if not live_unlocked(settings, passcode):
+    if needs_passcode and not live_unlocked(settings, passcode):
         st.error("This needs the live passcode.")
         return False
     if settings.public and live_runs_left(settings) <= 0:
@@ -69,8 +62,10 @@ def _allowed(passcode: str) -> bool:
 
 def _pick(example: Example) -> None:
     st.session_state.rp_question = example.question
-    for key in ("found_pair", "real_pair", "rp_saved"):
+    for key in ("found_pair", "real_pair", "rp_saved", "rp_pinned"):
         st.session_state.pop(key, None)
+    if example.pair:
+        st.session_state.rp_pinned = example
     if example.saved:
         st.session_state.real_pair = real_pair.load_example(example.saved)
         st.session_state.rp_saved = example.saved
@@ -257,10 +252,7 @@ def show_real_pair() -> None:
         "each quote against the abstract. Alloy then reads both full texts, takes every setting with its quote, "
         "reproduces both papers and tests which setting explains the disagreement. Nothing is chosen in advance."
     )
-    field = st.radio("Field", list(FIELDS), horizontal=True, key="rp_field")
-    if FIELDS[field]:
-        st.info(FIELDS[field])
-        return
+    st.caption(SCOPE)
     question = st.text_input(
         "Research question",
         placeholder="e.g. Does SINDy still recover the Lorenz equations at high measurement noise?",
@@ -268,7 +260,7 @@ def show_real_pair() -> None:
     )
     passcode = st.text_input("Live passcode", type="password") if settings.live_passcode else ""
     if st.button("Find disagreeing papers", type="primary", disabled=not question.strip()) and _allowed(passcode):
-        for key in ("found_pair", "real_pair", "rp_saved"):
+        for key in ("found_pair", "real_pair", "rp_saved", "rp_pinned"):
             st.session_state.pop(key, None)
         with st.spinner("Searching arXiv through Bond and reading the abstracts..."):
             try:
@@ -277,8 +269,26 @@ def show_real_pair() -> None:
                 st.error(f"No pair found: {exc}")
     _examples()
 
+    pinned = st.session_state.get("rp_pinned")
     found = st.session_state.get("found_pair")
-    if found is not None:
+    if pinned is not None:
+        st.markdown(f"**Live run on a fixed pair: {' vs '.join(p.split(':')[-1] for p in pinned.pair)}**")
+        st.caption(
+            "Alloy reruns both papers' settings from the committed extractions, so no model key is spent. "
+            "Bond's lookup and every simulation run happen now. It takes a few minutes."
+        )
+        if st.button("Run this audit live", type="primary") and _allowed(passcode, needs_passcode=False):
+            with st.spinner("Reproducing both papers, testing the cause and racing fixes..."):
+                try:
+                    st.session_state.real_pair = real_pair.run(
+                        papers=pinned.pair,
+                        query=pinned.question,
+                        runs=settings.max_runs,
+                        confirm=not settings.public,
+                    )
+                except Exception as exc:  # noqa: BLE001 - show the reason instead of a stack trace
+                    st.error(f"Audit stopped: {type(exc).__name__}: {exc}")
+    elif found is not None:
         st.markdown(f"**Bond returned {found.candidates} arXiv papers. These two disagree:**")
         _claims(
             [
@@ -315,6 +325,7 @@ def show_real_pair() -> None:
     st.divider()
     if st.session_state.get("rp_saved"):
         st.caption("Saved audit from 22 Oct 2026, run from the committed extractions. Rerunning it needs no model key.")
+    if st.session_state.get("rp_saved") or pinned is not None:
         _claims(_report_cards(report))
     st.markdown(f"### {_headline(report)}")
     (st.success if report.deciding else st.warning)(report.verdict)
