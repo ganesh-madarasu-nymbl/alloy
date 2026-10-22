@@ -1,0 +1,19 @@
+{
+  "_about": "Outcomes a reviewer read from figures or tables, used when the paper text does not state the result. Settings listed under 'unstated' are dropped from the automatic extraction, with the reason.",
+  "arxiv:1509.03580": {
+    "result": "recovers",
+    "noise_as_written": "1",
+    "locator": "Table 4: identified Lorenz coefficients at derivative-noise variance eta = 1",
+    "note": "Read by a reviewer from Table 4. The text adds that the form of the equations holds up to eta = 10."
+  },
+  "arxiv:2009.08810": {
+    "result": "fails",
+    "noise_as_written": "10%",
+    "locator": "Figure 14 bar labels: 8% is the most noise original SINDy handles on Lorenz",
+    "note": "Read by a reviewer from the Figure 14 image. 10% is the first level above the stated 8% limit; the paper does not list the tested levels, so 10% is an assumption.",
+    "unstated": {
+      "threshold": "lambda = 0.1 in Section 3.2 applies to modified SINDy; original SINDy used a threshold sweep with no stated selection rule",
+      "poly_degree": "the 'second order' library in Section 3.2 is stated for modified SINDy; the library for original SINDy is not stated"
+    }
+  }
+}

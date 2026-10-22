@@ -29,6 +29,8 @@ MODES = {
     "Saved investigation": "<b>Saved investigation.</b> Open an investigation JSON to inspect it. Nothing is rerun.",
     "Collection campaign": "<b>Collection campaign.</b> Audit several conflicting claim pairs in one budgeted run.",
     "Saved campaign": "<b>Saved campaign.</b> Inspect a finished campaign and drill into each audit.",
+    "Real paper pair": "<b>Real paper pair.</b> Bond finds two real papers, arXiv supplies the full text, and "
+    "Alloy reproduces both and tests which setting explains the disagreement.",
 }
 
 
@@ -95,6 +97,13 @@ if previous_mode is not None and previous_mode != mode:
         st.session_state.pop("inv", None)
     st.session_state.pop("campaign", None)
 st.session_state.evidence_mode = mode
+if mode == "Real paper pair":
+    from alloy.ui.real_pair_view import show_real_pair
+
+    with hero_slot.container():
+        style.hero(None, model=settings.model, bond_live=settings.bond_configured)
+    show_real_pair()
+    st.stop()
 if mode in {"Collection campaign", "Saved campaign"}:
     from alloy.ui.collection import show_collection
 

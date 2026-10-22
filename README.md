@@ -121,10 +121,11 @@ short excerpts, stated settings and explicit reproduction gaps.
 **A real disagreement.** Brunton et al. 2016 recover the Lorenz equations from noisy data;
 Kaheman et al. 2020 report that the same original SINDy fails above 8% noise. Running both
 protocols shows that noise placement decides it: on Brunton's own record, moving the noise from
-the derivatives to the states turns recovery into failure on every seed. The runs also suggest
-Kaheman's "8%" behaves like a standard-deviation ratio, not the variance ratio their Eq. 19
-defines. Details and caveats: [real-pair-review.md](docs/real-pair-review.md); rerun with
-`uv run python scripts/real_pair_probe.py`.
+the derivatives to the states turns recovery into failure on every seed. Read as a
+standard-deviation ratio, Kaheman's "8%" lands near the limit the probe finds; read as the
+variance ratio their Eq. 19 defines, SINDy already fails from 1%. With five datasets the curve is
+not monotonic, so the probe does not pin the limit down. Details and caveats:
+[real-pair-review.md](docs/real-pair-review.md); rerun with `uv run python scripts/real_pair_probe.py`.
 
 The pair is still **not eligible for exact reproduction**: neither paper states every setting
 (thresholds, derivative construction), so those runs use labeled assumptions. `alloy demo
@@ -133,6 +134,49 @@ never substitutes synthetic claims. `uv run alloy evidence-check` lists the bloc
 
 If a native MCP client already returned a search response, import it with
 `uv run alloy bond-import /path/to/result.json --query "the exact original query" --limit 5`.
+
+### Real paper pair, end to end
+
+`uv run alloy real-pair` (or **Real paper pair** in the app) audits Brunton 2016 against Kaheman 2020
+with no keys, in about a minute:
+
+1. **Bond** confirms both papers (`export_papers_json`) and checks that a semantic search finds them.
+   Bond returns metadata and abstracts only. We tested all 38 tools on 12 papers across five sources.
+2. **arXiv HTML** (`arxiv.org/html/<id>`) supplies the full text with sections and tables. Alloy keeps
+   only the methods, results and table sections, about 3,000 tokens a paper, so Groq's free tier
+   can read it.
+3. **The model extracts stated settings only**, each with a quote. Code keeps a setting only if its
+   quote is in the text and the quote supports the value. Extraction ran on GPT-OSS-120B through Groq.
+4. **Code fills gaps by rule:** the other paper's stated value, else the adapter default. Noise
+   placement and derivative construction are never borrowed, because they are the likeliest causes.
+   An unstated threshold means "recovered if any of 8 thresholds works", the rule Kaheman et al. use.
+5. **Readings.** An ambiguous noise unit becomes labelled readings, with the paper's own definition
+   tried first.
+6. **Tiers.** Each paper is `exact`, `reproduced under assumptions` or `not reproduced`. If a run
+   does not match the reported outcome, Alloy tries the other readings, then varies one assumed
+   setting at a time, with a cap of 8 variants.
+7. **Cause.** Alloy flips each group of settings (noise level, noise placement, record, library,
+   regression) from the recovering paper to the failing one and measures the drop in recovery.
+   Locally it also runs the reverse flip.
+
+Result (22 Oct 2026, 152 runs): both papers reproduce under labelled assumptions. Moving Brunton's
+noise placement to Kaheman's (state noise with finite differences) drops recovery from 3 of 3
+seeds to 0. Noise level drops it to 2 of 3, and the record and library change nothing. That
+matches the hand-checked answer in `docs/real-pair-review.md`.
+
+Caveats:
+
+- **This is one scored pair.** Brunton–Kaheman is the only pair with a hand-checked answer, so the
+  real-paper bench has n = 1.
+- **Two outcomes are reviewer-read.** Neither paper states its outcome in prose. Brunton's comes from
+  Table 4 and Kaheman's from the Figure 14 image. `data/literature/reviewed_outcomes.json` records
+  both with their locators, and the report labels them.
+- **Committed settings, not full text.** `data/literature/protocols/` holds the verified settings and
+  short quotes, so judges can rerun without a model key or network. Use `--fresh` to extract again,
+  and `--save` to commit a new reviewed extraction.
+- **A second pair failed honestly.** Brunton against Weak SINDy (`alloy real-pair arxiv:1509.03580
+  arxiv:2005.04339`) stops because Weak SINDy's text states no outcome for standard SINDy, so there
+  is nothing to reproduce. A reviewer can add one from its figures.
 
 ### Replay
 
