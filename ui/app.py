@@ -1,11 +1,15 @@
 """Evidence and saved-result views. Run with: uv run streamlit run ui/app.py"""
 
 import json
+import sys
 from pathlib import Path
 
 import networkx as nx
 import pandas as pd
 import streamlit as st
+
+# Streamlit Community Cloud installs the dependencies but may not install this package itself.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from alloy.agent.loop import investigate
 from alloy.cli import DEFAULT_QUESTION
