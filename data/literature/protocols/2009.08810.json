@@ -1,0 +1,68 @@
+{
+ "paper": "arxiv:2009.08810",
+ "system": "lorenz",
+ "settings": {
+  "noise_scale": {
+   "value": "variance_ratio",
+   "source": "stated",
+   "quote": "The noise level is defined as | \\text{Noise Level}~(\\%)=\\frac{\\mbox{var}(\\text{Noise)}}{\\mbox{var}(\\text{Signal})}\\times 100\\%. | (19) Figure 2: Top: Noise identification error of modified SINDy (labeled as SINDy) and NN denoising approach by Rudy et al. [1].",
+   "note": "variance_ratio"
+  },
+  "noise_type": {
+   "value": "gaussian",
+   "source": "stated",
+   "quote": "Different magnitudes of Gaussian noise are added to generate the noisy training data.",
+   "note": "gaussian"
+  },
+  "noise_location": {
+   "value": "state",
+   "source": "stated",
+   "quote": "In practice, noise-free measurements of \\mathbf{x}(t) are not available, and only the full state noisy measurement | \\mathbf{y}(t)=\\mathbf{x}(t)+\\mathbf{n}(t), | (4) is provided to SINDy from sensors, where \\mathbf{y}(t)=[y_{1}(t),y_{2}(t),\\cdots,y_{n}(t)]\\in\\mathbb{R}^{1\\times n} is noisy measurement and \\mathbf{n}(t)=[n_{1}(t),n_{2}(t),\\cdots,n_{n}(t)]\\in\\mathbb{R}^{1\\times n} is the noise added to true state.",
+   "note": "state"
+  },
+  "x0": {
+   "value": [
+    5.0,
+    5.0,
+    25.0
+   ],
+   "source": "stated",
+   "quote": "The Lorenz attractor is simulated with initial condition x_{0}=[5,5,25] , T=25 , and dt=0.01 .",
+   "note": "[5,5,25]"
+  },
+  "dt": {
+   "value": 0.01,
+   "source": "stated",
+   "quote": "The Lorenz attractor is simulated with initial condition x_{0}=[5,5,25] , T=25 , and dt=0.01 .",
+   "note": "0.01"
+  },
+  "t_end": {
+   "value": 25.0,
+   "source": "stated",
+   "quote": "The Lorenz attractor is simulated with initial condition x_{0}=[5,5,25] , T=25 , and dt=0.01 .",
+   "note": "25"
+  },
+  "poly_degree": {
+   "value": 2,
+   "source": "stated",
+   "quote": "For modified SINDy, the library is constructed with terms up to second order (not including the constant term).",
+   "note": "2"
+  },
+  "threshold": {
+   "value": 0.1,
+   "source": "stated",
+   "quote": "For most of the case, \\lambda=0.1 .",
+   "note": "0.1"
+  },
+  "noise": {
+   "value": 0.1,
+   "source": "stated",
+   "quote": "The time step is fixed at dt=0.01 with 10\\% of Gaussian noise added to generate noisy training data.",
+   "note": "10%"
+  }
+ },
+ "outcome": null,
+ "outcome_source": "none",
+ "outcome_note": null,
+ "rejected": []
+}

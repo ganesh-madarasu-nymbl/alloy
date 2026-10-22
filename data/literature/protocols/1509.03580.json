@@ -1,0 +1,66 @@
+{
+ "paper": "arxiv:1509.03580",
+ "system": "lorenz",
+ "settings": {
+  "noise_location": {
+   "value": "derivative",
+   "source": "stated",
+   "quote": "Zero-mean Gaussian measurement noise with variance \\eta is added to the derivative calculation to investigate the effect of noisy derivatives.",
+   "note": "derivative"
+  },
+  "noise_type": {
+   "value": "gaussian",
+   "source": "stated",
+   "quote": "Zero-mean Gaussian measurement noise with variance \\eta is added to the derivative calculation to investigate the effect of noisy derivatives.",
+   "note": "gaussian"
+  },
+  "noise_scale": {
+   "value": "variance",
+   "source": "stated",
+   "quote": "Zero-mean Gaussian measurement noise with variance \\eta is added to the derivative calculation to investigate the effect of noisy derivatives.",
+   "note": "variance"
+  },
+  "poly_degree": {
+   "value": 5,
+   "source": "stated",
+   "quote": "right-hand side dynamics are identified in the space of polynomials \\boldsymbol{\\Theta}(\\mathbf{X}) in (x,y,z) up to fifth order",
+   "note": "5"
+  },
+  "x0": {
+   "value": [
+    -8.0,
+    7.0,
+    27.0
+   ],
+   "source": "stated",
+   "quote": "For this example, we use the standard parameters \\sigma=10,\\beta=8/3,\\rho=28 , with an initial condition \\begin{bmatrix}x&y&z\\end{bmatrix}^{T}=\\begin{bmatrix}-8&7&27\\end{bmatrix}^{T} .",
+   "note": "[-8, 7, 27]^T"
+  },
+  "dt": {
+   "value": 0.001,
+   "source": "stated",
+   "quote": "Data is collected from t=0 to t=100 with a time-step of \\Delta t=0.001",
+   "note": "0.001"
+  },
+  "t_end": {
+   "value": 100.0,
+   "source": "stated",
+   "quote": "Data is collected from t=0 to t=100 with a time-step of \\Delta t=0.001",
+   "note": "100"
+  },
+  "noise": {
+   "value": 0.01,
+   "source": "stated",
+   "quote": "The short-time ( t=0 to t=20 ) and long-time ( t=0 to t=250 ) system reconstruction is shown in Fig. 4 for two different noise values, \\eta=0.01 and \\eta=10 .",
+   "note": "\\eta=0.01"
+  }
+ },
+ "outcome": {
+  "result": "recovers",
+  "noise_as_written": "\\eta=0.01",
+  "quote": "When the derivative measurements are contaminated with noise, the correct dynamics are identified, and the attractor is well-preserved for surprisingly large noise values."
+ },
+ "outcome_source": "text",
+ "outcome_note": null,
+ "rejected": []
+}

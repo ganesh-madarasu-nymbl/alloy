@@ -38,6 +38,12 @@ def main() -> None:
     coat.add_argument("--runs", type=int, default=30)
 
     sub.add_parser("check", help="show configuration")
+    pair = sub.add_parser("real-pair", help="audit two real papers: Bond, arXiv full text, extraction, reproduction")
+    pair.add_argument("papers", nargs="*", help="two arXiv ids (default: Brunton 2016 vs Kaheman 2020)")
+    pair.add_argument("--query", default=None, help="Bond semantic search used to confirm the papers are found")
+    pair.add_argument("--runs", type=int, default=600)
+    pair.add_argument("--fresh", action="store_true", help="ignore committed and cached extractions")
+    pair.add_argument("--save", action="store_true", help="commit the verified settings to data/literature/protocols")
     cite = sub.add_parser("cite", help="BibTeX from Valency Bond (arXiv, PubMed or ChemRxiv/bioRxiv ids)")
     cite.add_argument("papers", nargs="+")
     sub.add_parser("bond-check", help="discover Valency tools (token or Codex OAuth); no model call")
@@ -120,6 +126,24 @@ def main() -> None:
             "bond_configured": settings.bond_configured,
             "run_dir": str(settings.run_dir),
         }, indent=2))
+        return
+    if args.command == "real-pair":
+        from alloy.agent import real_pair
+
+        if args.papers and len(args.papers) != 2:
+            parser.error("give exactly two arXiv ids, or none for the default pair")
+        report = real_pair.run(
+            papers=tuple(args.papers) if args.papers else real_pair.DEFAULT_PAIR,
+            query=args.query or real_pair.DEFAULT_QUERY, runs=args.runs, use_cache=not args.fresh, save=args.save,
+        )
+        for r in report.results:
+            print(f"{r.paper}: {r.tier.replace('_', ' ')} (reported {r.outcome} at noise {r.outcome_noise})")
+        for group, e in report.attribution.items():
+            before, after = e["effect"] + e["recovered_after_flip"], e["recovered_after_flip"]
+            print(f"  flip {group:16s} recovery {before:.2f} -> {after:.2f}")
+        print()
+        print(report.verdict)
+        print(f"report: {settings.run_dir / report.id / 'real_pair.md'} ({report.runs_used} runs)")
         return
     if args.command == "cite":
         from alloy.knowledge.citations import bibtex
