@@ -18,15 +18,26 @@ from alloy.knowledge.presentation import condition_rows, evidence_label, paper_u
 from alloy.knowledge.records import local_notebook, read_investigation
 from alloy.knowledge.source_bundle import load_bundle
 from alloy.memory.deadend import DeadEndMap
+from alloy.ui import style
+
+MODES = {
+    "Synthetic demonstration": "<b>Synthetic demonstration.</b> Runs the full pipeline on built-in Lorenz claims "
+    "in about a minute. Switch on live literature to search Bond for real papers instead.",
+    "Reviewed literature": "<b>Reviewed literature.</b> Human-reviewed passages from real papers, with the gaps "
+    "that still block a faithful reproduction.",
+    "Saved investigation": "<b>Saved investigation.</b> Open an investigation JSON to inspect it. Nothing is rerun.",
+    "Collection campaign": "<b>Collection campaign.</b> Audit several conflicting claim pairs in one budgeted run.",
+    "Saved campaign": "<b>Saved campaign.</b> Inspect a finished campaign and drill into each audit.",
+}
 
 
 def show_sources(claims):
     for claim in claims:
-        with st.expander(f"{claim.id} · {claim.title or claim.paper}"):
+        with st.expander(f"{claim.id} · {claim.title or claim.paper}", icon=":material/description:"):
             st.caption(evidence_label(claim))
             url = paper_url(claim.paper)
             if url:
-                st.link_button("Open source paper", url)
+                st.link_button("Open source paper", url, icon=":material/open_in_new:")
             else:
                 st.text(claim.paper)
             st.text(claim.quote or "No supporting passage recorded.")
@@ -38,8 +49,8 @@ def show_reviewed_sources(bundle):
     st.subheader("Reviewed literature and reproduction gaps")
     st.info(bundle.description)
     for source in bundle.sources:
-        with st.expander(source.title):
-            st.link_button("Read primary source", str(source.source_url))
+        with st.expander(source.title, icon=":material/menu_book:"):
+            st.link_button("Read primary source", str(source.source_url), icon=":material/open_in_new:")
             st.caption(f"{source.evidence_type} · {source.review_status} · reviewed {source.reviewed_on}")
             st.text(source.locator)
             st.text(source.quote)
@@ -70,11 +81,13 @@ def show_deadends():
     st.dataframe(pd.DataFrame(rows), hide_index=True)
 
 
-st.set_page_config(page_title="Alloy", layout="wide")
-st.title("Alloy")
-st.caption("Investigate differences between results, test improvements, and keep an inspectable evidence trail.")
-mode = st.selectbox("Evidence mode", ["Synthetic demonstration", "Reviewed literature", "Saved investigation",
-                                     "Collection campaign", "Saved campaign"])
+st.set_page_config(page_title="Alloy · why results disagree", page_icon=":material/hexagon:", layout="wide")
+style.inject()
+hero_slot = st.empty()
+pick, note = st.columns([2, 3], gap="large", vertical_alignment="bottom")
+mode = pick.selectbox("Evidence mode", list(MODES))
+with note:
+    style.mode_note(MODES[mode])
 previous_mode = st.session_state.get("evidence_mode")
 if previous_mode is not None and previous_mode != mode:
     if not (mode == "Saved investigation" and st.session_state.get("saved_record")):
@@ -86,6 +99,8 @@ if mode in {"Collection campaign", "Saved campaign"}:
 
     child = show_collection(saved=mode == "Saved campaign")
     if child is None:
+        with hero_slot.container():
+            style.hero(None, model=settings.model, bond_live=settings.bond_configured)
         st.stop()
     st.session_state.inv = child
     st.session_state.saved_record = True
@@ -109,25 +124,27 @@ else:
                 st.error("Invalid investigation record. Supply an Alloy investigation JSON smaller than 5 MB.")
 
     with st.form("goal"):
-        question = st.text_area("Research goal", DEFAULT_QUESTION)
-        c1, c2, c3 = st.columns(3)
+        question = st.text_area("Research goal", DEFAULT_QUESTION, height=80)
+        c1, c2, c3 = st.columns([1, 1, 1.4], vertical_alignment="center")
         runs = c1.number_input("Run budget", 10, 500, 60)
         minutes = c2.number_input("Time budget (min)", 1.0, 60.0, 5.0)
         online = c3.toggle(
-            "Use Bond + Claude (API usage)", value=False,
+            "Live literature (Bond + model)", value=False,
             disabled=not settings.bond_configured or mode != "Synthetic demonstration",
+            help="Search Bond for real papers and extract their claims with the configured model.",
         )
         online = online and mode == "Synthetic demonstration"
         if online:
-            st.caption("Online mode searches Bond instead of using seed claims; Claude API usage applies.")
+            st.caption("Live mode searches Bond instead of using seed claims; model rate limits apply.")
         submitted = st.form_submit_button(
-            "Investigate", disabled=mode == "Saved investigation" or (mode == "Reviewed literature" and not eligible),
+            "Investigate", type="primary", icon=":material/science:",
+            disabled=mode == "Saved investigation" or (mode == "Reviewed literature" and not eligible),
         )
 
     if submitted:
         st.session_state.pop("inv", None)
         st.session_state.saved_record = False
-        with st.spinner("Investigating..."):
+        with st.spinner("Searching, reproducing and testing fixes..."):
             try:
                 claims = bundle.runnable_claims() if mode == "Reviewed literature" else None
                 # Never pass an empty literature list: the loop would use its synthetic fallback.
@@ -145,37 +162,52 @@ else:
                 )
 
 inv = st.session_state.get("inv")
+with hero_slot.container():
+    style.hero(inv, model=settings.model, bond_live=settings.bond_configured)
 if inv is None:
     if mode == "Synthetic demonstration":
-        st.info("Set a goal and budget, then press Investigate. Offline mode uses synthetic Lorenz claims.")
         st.warning("Offline claims are demo placeholders. No published disagreement has been verified.")
         preview = load_seed(Path(__file__).resolve().parents[1] / "data/seed/lorenz_claims.json")
-        st.subheader("Starting evidence")
-        show_sources(preview)
-        if len(preview) >= 2:
-            st.subheader("Condition comparison preview")
-            st.dataframe(pd.DataFrame(condition_rows(preview[0], preview[1])), hide_index=True)
-    show_deadends()
+        evidence_tab, memory_tab = st.tabs([":material/description: Starting evidence", ":material/history: Memory"])
+        with evidence_tab:
+            if len(preview) >= 2:
+                st.subheader("Condition comparison preview")
+                st.dataframe(pd.DataFrame(condition_rows(preview[0], preview[1])), hide_index=True)
+            st.subheader("Starting evidence")
+            show_sources(preview)
+        with memory_tab:
+            show_deadends()
+    else:
+        show_deadends()
     st.stop()
 
+st.divider()
 if st.session_state.get("saved_record"):
     st.caption("Saved result · displayed without rerunning or independently verifying its experiments")
 if any("placeholder" in evidence_label(c).lower() for c in inv.claims):
     st.warning("Demo evidence: these claims contain placeholders. Results cannot establish a published disagreement.")
-if inv.verdict:
-    (st.success if inv.verdict.status == "resolved" else st.warning)(inv.verdict.explanation)
-else:
-    st.warning("Partial investigation: no final verdict was recorded.")
-st.caption(f"{inv.runs_used} runs used · stopped at stage: {inv.stage}")
-if inv.conflict:
-    st.caption(f"Selected candidate pair: {inv.conflict[0]} / {inv.conflict[1]}")
-if inv.skipped:
-    with st.expander("Skipped candidate pairs"):
-        for reason in inv.skipped:
-            st.text(reason)
+style.verdict(inv)
 
-left, right = st.columns(2)
-with left:
+best = style.best_method(inv.comparison)
+cases = inv.challenge.get("cases", []) if inv.challenge else []
+m1, m2, m3, m4, m5 = st.columns([1, 1, 1, 2.6, 1])
+m1.metric("Runs used", inv.runs_used, border=True)
+m2.metric("Claims", len(inv.claims), border=True)
+m3.metric("Papers", len({c.paper for c in inv.claims}), border=True)
+m4.metric("Best method", best or "—", border=True)
+m5.metric("Unseen wins", f"{inv.challenge.get('wins', 0)}/{len(cases)}" if cases else "—", border=True)
+st.caption(f"{inv.runs_used} runs used · stopped at stage: {inv.stage}"
+           + (f" · candidate pair: {inv.conflict[0]} / {inv.conflict[1]}" if inv.conflict else ""))
+
+tabs = st.tabs([
+    ":material/description: Evidence", ":material/replay: Reproduce", ":material/trending_down: Improve & verify",
+    ":material/gavel: Referee", ":material/history: Memory", ":material/download: Export",
+])
+with tabs[0]:
+    if inv.skipped:
+        with st.expander("Skipped candidate pairs"):
+            for reason in inv.skipped:
+                st.text(reason)
     st.subheader("Claims")
     st.dataframe(pd.DataFrame([
         {"id": c.id, "paper": c.paper, "method": c.method, "metric": c.quantity, "unit": c.unit,
@@ -190,34 +222,40 @@ with left:
             st.dataframe(pd.DataFrame(condition_rows(by_id[report["a"]], by_id[report["b"]])), hide_index=True)
         if not report.get("comparable"):
             st.warning("Insufficient evidence for a controlled comparison.")
-        for note in report.get("notes", []):
-            st.caption(note)
+        for note_text in report.get("notes", []):
+            st.caption(note_text)
     st.subheader("Source trail")
     show_sources(inv.claims)
-with right:
+with tabs[1]:
     if inv.reproduction:
         st.subheader("Reproduction measurements")
-        st.json(inv.reproduction)
+        st.dataframe(pd.DataFrame(inv.reproduction).T.drop(columns="run_ids", errors="ignore"))
     if inv.attribution:
         st.subheader("Measured effect of changing each condition")
-        st.bar_chart(pd.Series(inv.attribution, name="error added"))
-        st.caption("One-at-a-time changes can miss interactions between conditions.")
+        st.altair_chart(style.effect_chart(inv.attribution))
+        st.caption("**Figure 1.** One condition changed at a time, so interactions can be missed.")
     if inv.hidden_search:
         st.subheader("Unstated-setting hypotheses")
         st.warning("A matching simulation does not establish which settings the authors used.")
         st.dataframe(pd.DataFrame(inv.hidden_search).drop(columns="run_ids", errors="ignore"), hide_index=True)
+    if not (inv.reproduction or inv.attribution or inv.hidden_search):
+        st.info("No reproduction was run: the investigation stopped before this stage.")
+with tabs[2]:
     if inv.hard_conditions:
         st.subheader("Settings used for method comparison")
-        st.json(inv.hard_conditions)
+        st.dataframe(pd.DataFrame([inv.hard_conditions]), hide_index=True)
     st.subheader("Controlled comparison at the harder setting")
     if inv.comparison:
-        table = pd.DataFrame(inv.comparison).T.round(3)
-        if "mean" in table:
-            st.bar_chart(table["mean"])
-        st.dataframe(table)
+        chart = style.comparison_chart(inv.comparison)
+        if chart is not None:
+            st.altair_chart(chart)
+            st.caption("**Figure 2.** Method error at the harder setting; the best method is highlighted.")
+        st.dataframe(pd.DataFrame(inv.comparison).T.round(3))
         st.caption(
-            "Mean, worst error and standard error describe the sampled seeds; unseen cases can reverse rankings."
+            "**Table 1.** Mean, worst and standard error over the sampled seeds; unseen cases can reverse rankings."
         )
+    else:
+        st.info("No method comparison was recorded.")
     if inv.challenge:
         st.subheader("MirageLab: unseen cases")
         st.dataframe(
@@ -226,32 +264,38 @@ with right:
         st.caption(
             f"Wins: {inv.challenge.get('wins', 'not recorded')} · passed: {inv.challenge.get('passed', 'unknown')}"
         )
-
-if inv.referee:
-    st.subheader("Referee")
-    for line in inv.referee:
-        st.text(line)
-if inv.candidates:
-    st.subheader("Why these methods?")
-    for candidate in inv.candidates:
-        st.text(f"{candidate.get('method', 'unknown')}: {candidate.get('rationale', 'not recorded')}")
-        st.caption(candidate.get("evidence_status", "unverified legacy proposal"))
-        source = candidate.get("source_paper")
-        url = paper_url(source) if source else None
-        if url:
-            st.link_button(f"Source for {candidate.get('method', 'unknown')}", url)
-        if candidate.get("source_quote"):
-            st.text(candidate["source_quote"])
-        st.caption("Quote occurrence checks provenance only. A proposed combination still needs experimental testing.")
-
-show_deadends()
-notebook = None if mode == "Saved campaign" else local_notebook(inv.notebook, settings.run_dir)
-if notebook:
-    st.download_button("Download replay notebook", notebook, "replay.ipynb")
-elif inv.notebook:
-    st.caption("Replay notebook is unavailable in this workspace. Transfer the run folder separately.")
-graph = EvidenceGraph()
-graph.add_claims(inv.claims)
-st.download_button("Download evidence graph", json.dumps(nx.node_link_data(graph.g, edges="links")), "graph.json")
-st.download_button("Download audit report", to_markdown(inv), "audit.md")
-st.download_button("Download investigation record", inv.model_dump_json(indent=2), "investigation.json")
+    if inv.candidates:
+        st.subheader("Why these methods?")
+        for candidate in inv.candidates:
+            with st.container(border=True):
+                st.text(f"{candidate.get('method', 'unknown')}: {candidate.get('rationale', 'not recorded')}")
+                st.caption(candidate.get("evidence_status", "unverified legacy proposal"))
+                source = candidate.get("source_paper")
+                url = paper_url(source) if source else None
+                if url:
+                    st.link_button(f"Source for {candidate.get('method', 'unknown')}", url)
+                if candidate.get("source_quote"):
+                    st.text(candidate["source_quote"])
+                st.caption(
+                    "Quote occurrence checks provenance only. A proposed combination still needs experimental testing."
+                )
+with tabs[3]:
+    if inv.referee:
+        st.subheader("Referee")
+        for line in inv.referee:
+            st.text(line)
+    else:
+        st.info("The referee runs only in live literature mode.")
+with tabs[4]:
+    show_deadends()
+with tabs[5]:
+    notebook = None if mode == "Saved campaign" else local_notebook(inv.notebook, settings.run_dir)
+    if notebook:
+        st.download_button("Download replay notebook", notebook, "replay.ipynb")
+    elif inv.notebook:
+        st.caption("Replay notebook is unavailable in this workspace. Transfer the run folder separately.")
+    graph = EvidenceGraph()
+    graph.add_claims(inv.claims)
+    st.download_button("Download evidence graph", json.dumps(nx.node_link_data(graph.g, edges="links")), "graph.json")
+    st.download_button("Download audit report", to_markdown(inv), "audit.md")
+    st.download_button("Download investigation record", inv.model_dump_json(indent=2), "investigation.json")
