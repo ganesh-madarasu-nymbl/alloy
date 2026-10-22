@@ -29,20 +29,29 @@ def true_derivatives(x: np.ndarray) -> np.ndarray:
 
 
 NOISE_TYPES = ("gaussian", "outliers")
+NOISE_SCALES = ("state_std", "absolute", "variance")
 
 
-def add_noise(x: np.ndarray, level: float, rng: np.random.Generator, kind: str = "gaussian") -> np.ndarray:
-    """Noise with std = level * (std of each state variable).
+def add_noise(
+    x: np.ndarray, level: float, rng: np.random.Generator, kind: str = "gaussian", scale: str = "state_std"
+) -> np.ndarray:
+    """Gaussian noise with std = level * (std of each column) for `state_std`, level for `absolute`,
+    or sqrt(level) for `variance` (Brunton et al. 2016 report noise as a variance).
 
-    `outliers` adds the same Gaussian noise plus sensor spikes: 1% of samples jump by 20x level.
+    `outliers` adds the same Gaussian noise plus sensor spikes: 1% of samples jump by 20x that std.
     """
     if kind not in NOISE_TYPES:
         raise ValueError(f"unknown noise type {kind!r}")
-    scale = x.std(axis=0)
-    noisy = x + level * scale * rng.standard_normal(x.shape)
+    if scale not in NOISE_SCALES:
+        raise ValueError(f"unknown noise scale {scale!r}")
+    if scale == "state_std":
+        std = level * x.std(axis=0)
+    else:
+        std = np.full(x.shape[1], np.sqrt(level) if scale == "variance" else level)
+    noisy = x + std * rng.standard_normal(x.shape)
     if kind == "outliers":
         spikes = rng.random(x.shape) < 0.01
-        noisy += spikes * 20 * level * scale * rng.choice([-1.0, 1.0], size=x.shape)
+        noisy += spikes * 20 * std * rng.choice([-1.0, 1.0], size=x.shape)
     return noisy
 
 

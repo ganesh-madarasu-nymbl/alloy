@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "description": "Primary-source review for the Lorenz demo. These papers motivate methods but do not yet provide an eligible scalar cross-paper reproduction pair. Keep synthetic scenarios separate.",
+  "description": "Primary-source review for the Lorenz demo. Brunton 2016 (recovers) and Kaheman 2020 (original SINDy fails) form a candidate pair whose deciding condition is noise placement, but unstated thresholds keep it out of exact reproduction. See docs/real-pair-review.md. Keep synthetic scenarios separate.",
   "sources": [
     {
       "paper_id": "arxiv:1509.03580",
       "title": "Discovering governing equations from data: Sparse identification of nonlinear dynamical systems",
       "source_url": "https://arxiv.org/html/1509.03580",
-      "locator": "Section 4.2; Figures 4\u20136; Table 4",
+      "locator": "Section 4.2; Figures 4–6; Table 4",
       "quote": "to investigate the effect of noisy derivatives.",
       "evidence_type": "full_text",
       "review_status": "primary_text_reviewed",
@@ -17,17 +17,28 @@
         "noise_location": "derivative targets",
         "noise_distribution": "zero-mean Gaussian",
         "noise_definition": "eta is variance",
-        "table_4_noise_variance": 1
+        "table_4_noise_variance": 1,
+        "initial_condition": [
+          -8,
+          7,
+          27
+        ],
+        "dt": 0.001,
+        "trajectory_interval": [
+          0,
+          100
+        ],
+        "derivative_noise_variance_upper": 10
       },
-      "outcome_summary": "Table 4 reports fitted coefficients; figures compare reconstructions under derivative noise. These are not the adapter's aggregate coefficient-error measurement.",
+      "outcome_summary": "Table 4 reports the correct Lorenz terms at derivative-noise variance 1; the text says the form of the equations holds up to variance 10. With threshold 0.025, exact derivatives and plain least squares the adapter reproduces this (coefficient error 0.0002), but those three settings are not stated in the paper.",
       "method_family": "sindy",
       "exact_implementation_match": false,
       "reproduction_eligible": false,
       "blockers": [
-        "The adapter adds state noise; this example adds derivative noise.",
-        "The published feature library has degree five; the adapter uses degree two.",
-        "Individual published coefficients cannot be treated as aggregate coefficient error.",
-        "Sampling, derivative, threshold and training settings need an exact reproduction specification."
+        "The threshold is not stated; 0.025 comes from the authors' released code, not the paper.",
+        "The text describes convex l1 minimisation; Code 1 uses sequentially thresholded least squares without a ridge penalty. The adapter reproduces Table 4 only with ridge 0.",
+        "Whether the clean derivatives are exact or numerical is not stated.",
+        "Table 4 reports coefficients from a single noise realisation, not an aggregate measurement."
       ]
     },
     {
@@ -61,19 +72,16 @@
       "exact_implementation_match": false,
       "reproduction_eligible": false,
       "blockers": [
-        "The adapter uses 20 ensemble models rather than 100.",
-        "Published noise normalization needs an explicit conversion.",
+        "Trajectory-RMS noise normalisation is not one of the adapter's noise scales.",
         "Bagging variants and inclusion thresholds do not map exactly to the current adapter.",
-        "A scalar outcome, derivative construction and aggregation remain unverified.",
-        "Published training start (-8, 7, 27) differs from the adapter fixed start (-8, 8, 27).",
-        "Published noise normalization differs from the adapter per-state standard-deviation scaling."
+        "A scalar outcome, derivative construction and aggregation remain unverified."
       ]
     },
     {
       "paper_id": "arxiv:2201.12683",
       "title": "A Priori Denoising Strategies for Sparse Identification of Nonlinear Dynamical Systems: A Comparative Study",
       "source_url": "https://arxiv.org/pdf/2201.12683",
-      "locator": "Sections 5 and 5.1, PDF pages 14\u201316; Figures 4\u201310; Table 2 on PDF page 24",
+      "locator": "Sections 5 and 5.1, PDF pages 14–16; Figures 4–10; Table 2 on PDF page 24",
       "quote": "We repeated the process for four different noise levels",
       "evidence_type": "full_text",
       "review_status": "primary_text_reviewed",
@@ -110,11 +118,49 @@
       "reproduction_eligible": false,
       "blockers": [
         "The exact smoother and parameter-selection procedure are not represented by a generic smoothed-sindy label.",
-        "The feature library has degree three rather than two.",
         "Table 2 values belong to unsupported WBPDN, not the adapter's STLS.",
-        "STLS coefficient-error figures require careful scalar extraction; unstable forecast realizations were excluded from some aggregation.",
-        "Published training start (-8, 7, 27) differs from the adapter fixed start (-8, 8, 27).",
-        "Published noise normalization differs from the adapter per-state standard-deviation scaling."
+        "STLS coefficient-error figures require careful scalar extraction; unstable forecast realizations were excluded from some aggregation."
+      ]
+    },
+    {
+      "paper_id": "arxiv:2009.08810",
+      "title": "Automatic Differentiation to Simultaneously Identify Nonlinear Dynamics and Extract Noise Probability Distributions from Data",
+      "source_url": "https://arxiv.org/pdf/2009.08810",
+      "locator": "Appendix E and Figure 14 (PDF pages 24-25); Section 3.2 and Eq. 19 (PDF page 7); Section 4.4 (PDF page 13)",
+      "quote": "5 different noisy data sets are generated and provided to both approaches.",
+      "evidence_type": "full_text",
+      "review_status": "primary_text_reviewed",
+      "reviewed_on": "2026-10-21",
+      "stated_conditions": {
+        "system": "lorenz",
+        "initial_condition": [
+          5,
+          5,
+          25
+        ],
+        "dt": 0.01,
+        "trajectory_interval": [
+          0,
+          25
+        ],
+        "noise_location": "state observations",
+        "noise_distribution": "Gaussian",
+        "noise_definition": "Eq. 19: noise level (%) = var(noise) / var(signal) x 100",
+        "derivative": "finite difference",
+        "threshold_sweep": "100 uniform values from 0.01 to the smallest true coefficient magnitude",
+        "noise_realizations": 5,
+        "original_sindy_max_noise_percent": 8
+      },
+      "outcome_summary": "Figure 14's bar labels give 8% as the most noise original SINDy handles on Lorenz (18% with smoothing). Read as Eq. 19's variance ratio, the adapter recovers all five datasets only up to 0.25% and none from 1%; read as a standard-deviation ratio, all five recover at 6% and none from 10% (scripts/real_pair_probe.py).",
+      "method_family": "sindy",
+      "exact_implementation_match": false,
+      "reproduction_eligible": false,
+      "blockers": [
+        "The 8% limit is read from figure bar labels, not stated in prose.",
+        "The rule for picking a threshold from the sweep is not stated.",
+        "The finite-difference scheme and the original SINDy library are not stated.",
+        "Eq. 19 defines noise by variance ratio, Section 4.4 multiplies noise by percentage x var(signal), and only a standard-deviation ratio reproduces the 8% limit.",
+        "Whether the signal variance is per state or pooled, and which noise levels were tested, is not stated."
       ]
     }
   ],

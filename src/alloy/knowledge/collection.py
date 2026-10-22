@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from alloy.contracts import Claim
 from alloy.knowledge.conditions import check
-from alloy.knowledge.source_bundle import PYSINDY_KEYS, EvidenceBundle, execution_issue
+from alloy.knowledge.source_bundle import ADAPTER_KEYS, EvidenceBundle, execution_issue
 
 DEFAULTS = dict(system="lorenz", noise=0.0, noise_type="gaussian", dt=0.002, t_end=10.0, threshold=0.1)
 
@@ -126,7 +126,7 @@ def plan_collection(
     gaps = {c.id: _execution_gap(c, evidence) for c in claims}
     pairs = []
     for a, b in combinations(claims, 2):
-        report = check(a, b, PYSINDY_KEYS)
+        report = check(a, b, ADAPTER_KEYS)
         p = PairPlan(id=pair_id(a.id, b.id), claims=(a.id, b.id), disposition="incompatible",
                      reasons=["screening in progress"], condition_report=json.loads(json.dumps(asdict(report))))
         if works[a.id] == works[b.id]:

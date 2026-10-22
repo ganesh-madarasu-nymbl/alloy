@@ -96,12 +96,21 @@ and [acceptance ledger](docs/multi-paper-handoff.md).
 
 ### Reviewed literature
 
-`data/evidence/sindy_review.json` contains three reviewed primary sources, source locations,
-short excerpts, stated settings and explicit reproduction gaps. It currently contains **no
-eligible cross-paper claim pair**: the papers differ from the adapter in noise construction,
-feature library, method implementation or measured quantity. `alloy demo --evidence <bundle>`
-validates the bundle and refuses to run when no eligible pair exists. It never substitutes
-synthetic claims. `uv run alloy evidence-check` lists the blockers per paper.
+`data/evidence/sindy_review.json` contains four reviewed primary sources, source locations,
+short excerpts, stated settings and explicit reproduction gaps.
+
+**A real disagreement.** Brunton et al. 2016 recover the Lorenz equations from noisy data;
+Kaheman et al. 2020 report that the same original SINDy fails above 8% noise. Running both
+protocols shows that noise placement decides it: on Brunton's own record, moving the noise from
+the derivatives to the states turns recovery into failure on every seed. The runs also suggest
+Kaheman's "8%" behaves like a standard-deviation ratio, not the variance ratio their Eq. 19
+defines. Details and caveats: [real-pair-review.md](docs/real-pair-review.md); rerun with
+`uv run python scripts/real_pair_probe.py`.
+
+The pair is still **not eligible for exact reproduction**: neither paper states every setting
+(thresholds, derivative construction), so those runs use labeled assumptions. `alloy demo
+--evidence <bundle>` validates the bundle and refuses to run when no eligible pair exists. It
+never substitutes synthetic claims. `uv run alloy evidence-check` lists the blockers per paper.
 
 If a native MCP client already returned a search response, import it with
 `uv run alloy bond-import /path/to/result.json --query "the exact original query" --limit 5`.
@@ -203,7 +212,8 @@ Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Cl
 
 - [x] Native-session Bond search, raw-result ingestion, deduplication and cache replay
 - [x] Live Bond search over HTTP with token renewal; claim extraction on free Groq GPT-OSS-120B
-- [ ] Find a reviewed eligible real-paper pair; preserve source/adapter mismatch evidence
+- [x] Review a real-paper disagreement (Brunton 2016 vs Kaheman 2020) and run both protocols
+- [ ] An eligible real-paper pair: needs papers that state every setting, including thresholds
 - [x] Baseline prompt includes every Claim field; historical results still need fair reruns
 - [x] `experiments/adapters/tmm_adapter.py`: cooling coatings (stretch)
 - [x] UI: condition differences, citation trail, saved records and failure history

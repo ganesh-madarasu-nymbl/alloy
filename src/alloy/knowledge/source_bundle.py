@@ -6,6 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from alloy.contracts import Claim
+from alloy.experiments.adapters.pysindy_adapter import PROTOCOL_KEYS, protocol_issue
 from alloy.knowledge.conditions import check, measurement_issue
 from alloy.knowledge.extract import number_in_quote
 from alloy.knowledge.graph import EvidenceGraph
@@ -13,6 +14,8 @@ from alloy.knowledge.graph import EvidenceGraph
 DEFAULT_BUNDLE = Path(__file__).resolve().parents[3] / "data/evidence/sindy_review.json"
 PYSINDY_METHODS = ("sindy", "smoothed-sindy", "ensemble-sindy", "smoothed-ensemble-sindy")
 PYSINDY_KEYS = ("system", "noise", "noise_type", "dt", "t_end", "threshold")
+# Every setting the adapter can vary; a pair may differ in any of them.
+ADAPTER_KEYS = (*PYSINDY_KEYS, *PROTOCOL_KEYS)
 
 
 def execution_issue(claim: Claim) -> str | None:
@@ -21,8 +24,10 @@ def execution_issue(claim: Claim) -> str | None:
         return issue
     if claim.method not in PYSINDY_METHODS or claim.conditions.get("system") != "lorenz":
         return "method or system is unsupported by the current adapter"
-    if set(claim.conditions) != set(PYSINDY_KEYS):
+    if not set(PYSINDY_KEYS) <= set(claim.conditions) <= set(ADAPTER_KEYS):
         return "exact reproduction needs every supported setting and no unsupported settings"
+    if issue := protocol_issue(claim.conditions):
+        return issue
     if not check(claim, claim, PYSINDY_KEYS).comparable:
         return "conditions or measurement contain missing or nonfinite values"
     if claim.conditions["noise_type"] not in {"gaussian", "outliers"}:
@@ -114,7 +119,7 @@ class EvidenceBundle(BaseModel):
         runnable = self.runnable_claims()
         graph = EvidenceGraph()
         graph.add_claims(runnable)
-        eligible_pair = any(a.paper != b.paper and check(a, b, PYSINDY_KEYS).comparable for a, b in graph.conflicts())
+        eligible_pair = any(a.paper != b.paper and check(a, b, ADAPTER_KEYS).comparable for a, b in graph.conflicts())
         return {
             "sources": len(self.sources), "reviewed_claims": len(self.claims),
             "runnable_claims": len(runnable),
