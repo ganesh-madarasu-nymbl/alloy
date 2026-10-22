@@ -38,6 +38,8 @@ def main() -> None:
     coat.add_argument("--runs", type=int, default=30)
 
     sub.add_parser("check", help="show configuration")
+    cite = sub.add_parser("cite", help="BibTeX from Valency Bond (arXiv, PubMed or ChemRxiv/bioRxiv ids)")
+    cite.add_argument("papers", nargs="+")
     sub.add_parser("bond-check", help="discover Valency tools (token or Codex OAuth); no model call")
     bond_search = sub.add_parser("bond-search", help="search Bond (token or Codex OAuth); no model call")
     bond_search.add_argument("query")
@@ -118,6 +120,13 @@ def main() -> None:
             "bond_configured": settings.bond_configured,
             "run_dir": str(settings.run_dir),
         }, indent=2))
+        return
+    if args.command == "cite":
+        from alloy.knowledge.citations import bibtex
+
+        found = bibtex(args.papers, fetch=True)
+        for paper in args.papers:
+            print(found.get(paper, f"% {paper}: not found in Bond or not a real paper id"), end="\n\n")
         return
     if args.command == "audit":
         run_audit(args.scenario, args.runs)

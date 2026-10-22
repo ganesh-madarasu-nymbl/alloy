@@ -32,7 +32,7 @@ def _table(headers: list[str], rows: list[list[Any]]) -> list[str]:
     return lines + [""]
 
 
-def to_markdown(inv, second_opinion: dict[str, Any] | None = None) -> str:
+def to_markdown(inv, second_opinion: dict[str, Any] | None = None, bibtex: dict[str, str] | None = None) -> str:
     v = inv.verdict
     out = [f"# Audit: {inv.goal.question}", ""]
     if v:
@@ -149,10 +149,16 @@ def to_markdown(inv, second_opinion: dict[str, Any] | None = None) -> str:
          "This may be a partial investigation without completed runs."),
         "",
     ]
+    if bibtex:
+        out += ["## References", "", "BibTeX exported from Valency Bond (`export_papers_bibtex`).", "",
+                "```bibtex", "\n\n".join(dict.fromkeys(bibtex.values())), "```", ""]
     return "\n".join(out)
 
 
-def write(inv, run_dir: Path, second_opinion: dict[str, Any] | None = None) -> Path:
+def write(inv, run_dir: Path, second_opinion: dict[str, Any] | None = None, fetch_citations: bool = False) -> Path:
+    from alloy.knowledge.citations import bibtex
+
+    refs = bibtex([c.paper for c in inv.claims], fetch=fetch_citations)
     path = Path(run_dir) / "audit.md"
-    path.write_text(to_markdown(inv, second_opinion), encoding="utf-8")
+    path.write_text(to_markdown(inv, second_opinion, refs), encoding="utf-8")
     return path

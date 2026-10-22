@@ -128,7 +128,7 @@ def investigate(
         if runner.results:
             inv.notebook = str(to_notebook(goal.question, runner.results, run_dir / "replay.ipynb"))
         (run_dir / "investigation.json").write_text(inv.model_dump_json(indent=2), encoding="utf-8")
-        audit_report.write(inv, run_dir)
+        audit_report.write(inv, run_dir, fetch_citations=not offline)
     return inv
 
 
