@@ -1,6 +1,8 @@
 # Alloy
 
-Alloy audits answers about why published results disagree. An AI agent can find a likely cause in a handful of runs. Alloy checks that answer: it reruns each paper's setting, tests one condition at a time, compares methods on fixed seeds, tries cases neither paper covered, and writes a report a reviewer can rerun line by line. Ganesh and Santosh are building it for the OSI Hackathon Boston (October 2026), with the Valency Bond MCP as the literature source.
+Alloy audits answers about why published results disagree. An AI agent can find a likely cause in a handful of runs. Alloy checks that answer: it reruns each paper's setting, tests one condition at a time, compares methods on fixed seeds, tries cases neither paper covered, and writes a report a reviewer can rerun line by line. Ganesh Madarasu (ganesh.madarasu@nymbl.app) and Santosh Oruganty (santosh.oruganty@nymbl.app) built it for the OSI Hackathon Boston at MIT (21–22 October 2026), on the Valency Bond track.
+
+**Live app:** [alloy-hack.streamlit.app](https://alloy-hack.streamlit.app)
 
 ![Alloy's results view: pipeline, finding, metrics and tabs](docs/images/alloy-ui.png)
 
@@ -13,6 +15,32 @@ A researcher gives Alloy a goal, a supported simulator and a compute budget. All
 - the winner's results on unseen cases
 - a replay notebook and a log of what failed
 
+## Try it live
+
+[alloy-hack.streamlit.app](https://alloy-hack.streamlit.app) runs everything on the host, with Claude
+Sonnet 5.5 as the model and Bond as the literature source. The header says **Bond connected** only
+after a real Bond request succeeds.
+
+In **Real paper pair**, type a research question. Bond searches arXiv, and Alloy reads full texts
+until one paper states that standard SINDy recovers the system and another states that it fails.
+Code checks every quote against the paper before showing it, and lists every paper it checked. No
+paper is chosen in advance. The audit then reproduces both papers, flips each settings group to find
+the cause, races fixes on the failing setup, verifies the winner on unseen trajectories and keeps
+the losers in the Dead-End Map. Free-text questions need the live passcode. The **Run it live** and
+**Second paper** cards rerun a pair from committed extractions without one.
+
+Live results on 22 Oct 2026:
+
+| Pair | Runs | Cause | Fix: coefficient error | Unseen trajectories |
+|---|---|---|---|---|
+| Brunton 2016 ([1509.03580](https://arxiv.org/abs/1509.03580)) vs Kaheman 2020 ([2009.08810](https://arxiv.org/abs/2009.08810)) | 117 | noise placement | 0.69 → 0.19 | wins 3 of 3 |
+| Brunton 2016 vs [2204.10472](https://arxiv.org/abs/2204.10472), found through Bond | 118 | noise placement and record length, each on its own | 6.63 → 1.49 | wins 1 of 3 |
+| Brunton 2016 vs Weak SINDy ([2005.04339](https://arxiv.org/abs/2005.04339)) | 5 | stops: Weak SINDy states no result for standard SINDy | none | none |
+
+The first pair matches our hand-checked answer. The second has no hand-checked answer, and the app
+says so. The public app lists three modes (Real paper pair, Collection campaign, Saved campaign);
+add `?demo=1` to the URL to also show the synthetic demonstration and the read-only views.
+
 ## Why an auditor
 
 We first set out to show that Alloy finds good method combinations with fewer experiments than a plain agent. Our own benchmark says no: on five scenarios, Claude Sonnet 5.5 found every cause in 4 to 14 runs, against Alloy's 17 to 45 (details below). Speed is not where Alloy helps. It helps with trust: the agent's answer comes from a few lucky seeds and its prior knowledge, while Alloy's comes with controlled evidence you can replay. In the short_record audit, both named the same method, and Alloy added that the runner-up sits within seed noise of it.
@@ -24,11 +52,11 @@ Needs Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 ```bash
 git clone https://github.com/ganesh-madarasu-nymbl/alloy.git && cd alloy
 uv sync
-uv run streamlit run ui/app.py   # open http://localhost:8501 and press Investigate
+uv run streamlit run ui/app.py   # open http://localhost:8501/?demo=1 and press Investigate
 ```
 
-The default **Synthetic demonstration** runs the whole pipeline locally in about a minute: no
-account, API key or network call. The same run from the terminal:
+**Synthetic demonstration** (listed with `?demo=1`) runs the whole pipeline locally in about a
+minute: no account, API key or network call. The same run from the terminal:
 
 ```bash
 uv run alloy demo     # 34 simulations, writes runs/<id>/audit.md and replay.ipynb
@@ -38,14 +66,16 @@ uv run pytest -q
 Offline mode reads synthetic claims in `data/seed/lorenz_claims.json`. Their placeholder
 quotations are labeled in the UI and are not evidence of a published disagreement.
 
-The UI has four modes:
+The UI has six modes. The first three are always listed; the rest appear with `?demo=1`.
 
 | Mode | What it does | Needs |
 |---|---|---|
+| Real paper pair | Finds two real papers that disagree from a question, or reruns a committed pair, and audits them | model key and Bond for new questions; nothing for committed pairs |
+| Collection campaign | Plans and runs up to three discrepancies under one shared budget | nothing |
+| Saved campaign | Opens an exported campaign without rerunning anything | nothing |
 | Synthetic demonstration | Full pipeline on seed claims; toggle **Live literature** to search Bond instead | nothing (live: keys below) |
 | Reviewed literature | Shows reviewed primary papers and why each cannot yet be reproduced exactly | nothing |
-| Collection campaign | Plans and runs up to three discrepancies under one shared budget | nothing |
-| Saved investigation / campaign | Opens an exported JSON without rerunning anything | nothing |
+| Saved investigation | Opens an exported investigation JSON without rerunning anything | nothing |
 
 ## Live literature: free keys
 
@@ -56,6 +86,7 @@ and referee the verdict. Both services have free tiers; nothing here needs a pai
    defaults to `openai/gpt-oss-120b` through Groq's OpenAI-compatible API (free tier: 1,000
    requests and about 200k tokens a day). Any OpenAI-compatible endpoint works through
    `ALLOY_LLM_BASE_URL`; set `ALLOY_MODEL` to a `claude-*` model and `ANTHROPIC_API_KEY` to use Claude.
+   The hosted app uses `claude-sonnet-5-5`.
 2. **Bond.** Sign in to Valency's MCP server (`https://mcp.valency.io/`) with any MCP client
    that supports OAuth, and copy the access token, refresh token and client ID. Alloy calls Bond
    over HTTP and renews the token itself when it expires. Alternatively set
@@ -88,14 +119,16 @@ The app runs on [Streamlit Community Cloud](https://share.streamlit.io) for free
 from `uv.lock`. Add these secrets in the app settings (TOML, one per line):
 
 ```toml
-GROQ_API_KEY = "..."
+ALLOY_MODEL = "claude-sonnet-5-5"
+ANTHROPIC_API_KEY = "..."       # or GROQ_API_KEY with the default GPT-OSS model
 ALLOY_PUBLIC = "1"              # caps budgets at 120 runs and 10 minutes
-ALLOY_LIVE_PASSCODE = "..."     # optional; visitors need it only for live literature
+ALLOY_LIVE_PASSCODE = "..."     # optional; visitors need it only for free-text questions
 ALLOY_LIVE_RUNS_PER_DAY = "40"  # shared by every visitor
+VALENCY_TOKEN = "..."           # plus VALENCY_REFRESH_TOKEN and VALENCY_CLIENT_ID
 ```
 
-Synthetic, reviewed and saved modes need only the model key. Live literature also needs the
-`VALENCY_*` values. Valency rotates refresh tokens on every renewal, so give the hosted copy
+Synthetic, reviewed and saved modes need only the model key. Live literature and new questions in
+Real paper pair also need the `VALENCY_*` values. Valency rotates refresh tokens on every renewal, so give the hosted copy
 its own sign-in: a refresh token shared with a laptop stops working on whichever side renews
 second. The hosted cache is wiped on restart, after which the stored refresh token is stale
 and live mode needs a new sign-in.
@@ -312,8 +345,9 @@ Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Cl
 - [x] Bounded collection planner, shared-budget campaign records and saved campaign UI
 - [x] Research-style Streamlit UI
 - [x] GPT-OSS-120B plain-agent rerun on all 5 scenarios (n=1 each; repeats would make it a rate)
-- [ ] Public Streamlit Cloud deployment (public-mode guards ready; needs a sign-in at share.streamlit.io)
-- [ ] Record the backup demo video from cached runs
+- [x] Find a disagreeing pair from a free-text question through Bond and full texts
+- [x] Public Streamlit Cloud deployment at [alloy-hack.streamlit.app](https://alloy-hack.streamlit.app)
+- [x] Demo video (under 4 minutes, from live captures) and a one-page write-up for the submission
 
 ## Adding a scientific task
 
