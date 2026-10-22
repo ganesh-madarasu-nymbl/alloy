@@ -45,3 +45,10 @@ def test_page_states_which_papers_alloy_can_rerun():
     app = _app()
     assert not app.radio
     assert any("equations from data" in c.value for c in app.caption)
+
+
+def test_live_card_offers_a_pinned_run_without_a_passcode():
+    app = _app()
+    text = _click(app, "Run it live")
+    assert "Live run on a fixed pair: 1509.03580 vs 2009.08810" in text
+    assert any(b.label == "Run this audit live" for b in app.button)
