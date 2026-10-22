@@ -6,6 +6,9 @@ from pathlib import Path
 
 from alloy.config import settings
 
+# Entries for the papers the demo audits, so a fresh deployment shows references without a Bond token.
+COMMITTED = Path(__file__).resolve().parents[3] / "data" / "literature" / "bibtex.json"
+
 _ARXIV = re.compile(r"(?:arxiv:)?(\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Z]{2})?/\d{7})(?:v\d+)?", re.I)
 _DOI = re.compile(r"(?:doi:\s*|https?://(?:dx\.)?doi\.org/)?(10\.\d{4,9}/\S+)", re.I)
 
@@ -58,7 +61,7 @@ def bibtex(papers: list[str], fetch: bool = False, cache_path: Path | None = Non
     """Paper id -> BibTeX entry. Only calls Bond when `fetch` is set and the direct HTTP backend is
     configured; otherwise returns cached entries. Never raises: a report must build without Bond."""
     path = _cache_file(cache_path)
-    cache = _load(path)
+    cache = _load(path) if cache_path else {**_load(COMMITTED), **_load(path)}
     wanted = {p: bond_id(p) for p in dict.fromkeys(papers)}
     missing = sorted({b for b in wanted.values() if b and b not in cache})
     if missing and fetch and settings.bond_backend == "http" and settings.bond_configured:

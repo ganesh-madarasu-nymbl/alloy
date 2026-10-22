@@ -29,3 +29,12 @@ def test_report_lists_references_only_when_given():
     assert "## References" not in to_markdown(inv)
     text = to_markdown(inv, bibtex={"a": "@misc{brunton2015, title={SINDy}}"})
     assert "## References" in text and "@misc{brunton2015" in text
+
+
+def test_reference_pair_cites_from_committed_entries_without_bond(tmp_path, monkeypatch):
+    from alloy.agent import real_pair
+
+    monkeypatch.setattr(citations, "_cache_file", lambda _: tmp_path / "bibtex.json")  # fresh deployment
+    found = citations.bibtex(list(real_pair.DEFAULT_PAIR), fetch=False)
+    assert set(found) == set(real_pair.DEFAULT_PAIR)
+    assert "brunton2015discovering" in found[real_pair.DEFAULT_PAIR[0]]
