@@ -165,3 +165,18 @@ def test_fix_reports_no_winner_when_budget_runs_out(tmp_path):
 
     out = real_fix.fix(Runner(Budget(runs=3, minutes=5), tmp_path), "arxiv:hard", HARD)
     assert out.winner is None and "budget" in out.summary and not out.verified
+
+
+def test_fix_claims_no_improvement_when_an_early_dropped_sindy_arm_beats_the_leader(tmp_path, monkeypatch):
+    from alloy.agent import real_fix
+
+    def fake_adaptive(runner, specs, start, step, max_seeds):
+        stats = {label: {"mean": 0.6, "stderr": 0.05, "n": 3, "dropped_after": 2} for label in specs}
+        stats["sindy (threshold 0.2)"] = {"mean": 0.41, "stderr": 0.05, "n": 2, "dropped_after": 2}
+        stats["smoothed-ensemble-sindy (threshold 0.2)"] = {"mean": 0.49, "stderr": 0.05, "n": 3, "dropped_after": None}
+        return stats, {label: [] for label in specs}, "smoothed-ensemble-sindy (threshold 0.2)"
+
+    monkeypatch.setattr(real_fix.compare, "adaptive", fake_adaptive)
+    out = real_fix.fix(Runner(Budget(runs=50, minutes=5), tmp_path), "arxiv:hard", HARD)
+    assert "No noise-robust variant clearly beat standard SINDy" in out.summary
+    assert "cuts" not in out.summary and not out.unseen and not out.verified

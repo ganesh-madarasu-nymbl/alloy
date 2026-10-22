@@ -156,7 +156,7 @@ def _fix(fix) -> None:
     st.markdown(f"**Fixing the failing setup ({fix.setup}): improve, verify, remember**")
     win = next((a for a in fix.arms if a.label == fix.winner), None)
     base = next((a for a in fix.arms if a.label == fix.baseline), None)
-    if win and base and fix.winner != fix.baseline:
+    if win and base and fix.winner != fix.baseline and win.mean_error < base.mean_error:
         c1, c2, c3 = st.columns(3)
         c1.metric("Best standard SINDy", f"{base.mean_error:.2f}", help=f"Coefficient error, {base.label}")
         c2.metric(

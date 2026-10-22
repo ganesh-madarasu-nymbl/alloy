@@ -109,6 +109,15 @@ def fix(runner: Runner, paper: str, conditions: dict[str, Any], memory: Path | N
     if win.method == BASELINE or base is None:
         out.summary = f"No noise-robust variant beat standard SINDy on {paper}'s setup."
         return out
+    # An arm dropped early can keep a lower mean than the final leader, and a tie with plain
+    # SINDy is no win either: say so instead of claiming an improvement.
+    if win.mean_error >= base.mean_error or any(t.startswith(f"{BASELINE} (") for t in out.ties):
+        out.summary = (
+            f"No noise-robust variant clearly beat standard SINDy on {paper}'s setup: {leader} reached "
+            f"coefficient error {win.mean_error:.2f} against {base.mean_error:.2f} for {out.baseline}, "
+            "within seed noise or worse."
+        )
+        return out
 
     try:
         for i, case in enumerate(verify.unseen_cases("noise", conditions.get("noise", 0.0))):
