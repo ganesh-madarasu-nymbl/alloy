@@ -265,9 +265,9 @@ def run_bench(runs: int, names: list[str] | None, alloy_only: bool, repeat: int 
 
 def run_audit(name: str, runs: int) -> None:
     from alloy import bench
-    from alloy.agent.baseline import run_baseline
+    from alloy.agent.baseline import run_baseline, second_opinion
     from alloy.agent.loop import investigate
-    from alloy.experiments import compare, report
+    from alloy.experiments import report
 
     scenario = bench.load_scenarios([name])[0]
     goal = Goal(question=scenario.question, budget=Budget(runs=runs, minutes=10))
@@ -275,22 +275,10 @@ def run_audit(name: str, runs: int) -> None:
     run_dir = settings.run_dir / inv.id
     agent = run_baseline(goal, scenario.claims, run_dir / "agent")
 
-    alloy_cause = inv.verdict.deciding_conditions[0] if inv.verdict and inv.verdict.deciding_conditions else None
-    alloy_method = inv.verdict.best_method if inv.verdict else None
-    tied = compare.too_close_to_call(inv.comparison, alloy_method) if alloy_method else []
-    second = {
-        "agent_cause": agent.deciding_condition,
-        "agent_method": agent.method,
-        "agent_reason": agent.reason,
-        "agent_runs": agent.runs_used,
-        "alloy_cause": alloy_cause,
-        "alloy_method": alloy_method or "no method question",
-        "cause_agrees": agent.deciding_condition == alloy_cause,
-        "method_agrees": alloy_method is None or agent.method in [alloy_method, *tied],
-    }
+    second = second_opinion(inv, agent)
     path = report.write(inv, run_dir, second)
     print(f"agent: cause {agent.deciding_condition}, method {agent.method}, {agent.runs_used} runs")
-    print(f"alloy: cause {alloy_cause}, method {alloy_method}, {inv.runs_used} runs")
+    print(f"alloy: cause {second['alloy_cause']}, method {second['alloy_method']}, {inv.runs_used} runs")
     print(f"cause agrees: {second['cause_agrees']}, method agrees: {second['method_agrees']}")
     print(f"audit report: {path}")
 

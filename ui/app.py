@@ -19,6 +19,7 @@ from alloy.knowledge.records import local_notebook, read_investigation
 from alloy.knowledge.source_bundle import load_bundle
 from alloy.memory.deadend import DeadEndMap
 from alloy.ui import style
+from alloy.ui.agent_check import references, show_agent_check
 from alloy.ui.limits import live_runs_left, live_unlocked, record_live_run
 
 MODES = {
@@ -307,6 +308,7 @@ with tabs[3]:
             st.text(line)
     else:
         st.info("The referee runs only in live literature mode.")
+    second = show_agent_check(inv)
 with tabs[4]:
     show_deadends()
 with tabs[5]:
@@ -318,5 +320,6 @@ with tabs[5]:
     graph = EvidenceGraph()
     graph.add_claims(inv.claims)
     st.download_button("Download evidence graph", json.dumps(nx.node_link_data(graph.g, edges="links")), "graph.json")
-    st.download_button("Download audit report", to_markdown(inv), "audit.md")
+    report = to_markdown(inv, second, references(tuple(c.paper for c in inv.claims)))
+    st.download_button("Download audit report", report, "audit.md")
     st.download_button("Download investigation record", inv.model_dump_json(indent=2), "investigation.json")

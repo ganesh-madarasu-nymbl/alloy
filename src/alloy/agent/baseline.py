@@ -138,3 +138,23 @@ def run_baseline(goal: Goal, claims: list[Claim], run_dir: Path) -> BaselineResu
     )
     (Path(run_dir) / "baseline.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
     return result
+
+
+def second_opinion(inv, agent: BaselineResult) -> dict:
+    """Grade the plain agent's answer against Alloy's measured verdict for the same goal and claims."""
+    from alloy.experiments import compare
+
+    verdict = inv.verdict
+    alloy_cause = verdict.deciding_conditions[0] if verdict and verdict.deciding_conditions else None
+    alloy_method = verdict.best_method if verdict else None
+    tied = compare.too_close_to_call(inv.comparison, alloy_method) if alloy_method else []
+    return {
+        "agent_cause": agent.deciding_condition,
+        "agent_method": agent.method,
+        "agent_reason": agent.reason,
+        "agent_runs": agent.runs_used,
+        "alloy_cause": alloy_cause,
+        "alloy_method": alloy_method or "no method question",
+        "cause_agrees": agent.deciding_condition == alloy_cause,
+        "method_agrees": alloy_method is None or agent.method in [alloy_method, *tied],
+    }

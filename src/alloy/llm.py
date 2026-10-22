@@ -6,6 +6,7 @@ endpoint (Groq by default), so Alloy and the baseline run on the same free open 
 
 import inspect
 import json
+import os
 import time
 import urllib.error
 import urllib.request
@@ -32,6 +33,11 @@ def client() -> anthropic.Anthropic:
 
 def is_claude() -> bool:
     return settings.model.startswith("claude")
+
+
+def configured() -> bool:
+    """Whether a key for the configured model is present, so callers can disable model steps."""
+    return bool(os.getenv("ANTHROPIC_API_KEY")) if is_claude() else bool(settings.llm_api_key)
 
 
 def chat(messages: list[dict], effort: str = "medium", **extra) -> dict:
