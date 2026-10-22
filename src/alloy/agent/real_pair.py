@@ -230,6 +230,20 @@ def _bond_context(papers: list[str], query: str) -> dict[str, Any]:
     }
 
 
+def load_protocol(paper: str, use_cache: bool = True, save: bool = False) -> tuple[protocol.Protocol, str]:
+    """A paper's settings and standard-SINDy outcome: committed if present, else read from its full text."""
+    committed = protocol.load_committed(paper) if use_cache else None
+    if committed is not None:
+        proto, url = committed, fulltext.SOURCES[0].format(id=fulltext.arxiv_id(paper))
+    else:
+        doc = fulltext.fetch(paper, use_cache=use_cache)
+        raw, text = protocol.extract(doc, use_cache=use_cache)
+        proto, url = protocol.verify(raw, text, paper), doc.url
+        if save:
+            protocol.save_committed(proto)
+    return protocol.apply_reviewed_outcome(proto), url
+
+
 def run(
     papers: tuple[str, str] = DEFAULT_PAIR,
     query: str = DEFAULT_QUERY,
@@ -254,16 +268,7 @@ def run(
 
     protocols, results = [], []
     for paper in papers:
-        committed = protocol.load_committed(paper) if use_cache else None
-        if committed is not None:
-            proto, url = committed, fulltext.SOURCES[0].format(id=fulltext.arxiv_id(paper))
-        else:
-            doc = fulltext.fetch(paper, use_cache=use_cache)
-            raw, text = protocol.extract(doc, use_cache=use_cache)
-            proto, url = protocol.verify(raw, text, paper), doc.url
-            if save:
-                protocol.save_committed(proto)
-        proto = protocol.apply_reviewed_outcome(proto)
+        proto, url = load_protocol(paper, use_cache=use_cache, save=save)
         protocols.append(proto)
         meta = report.bond.get("papers", {}).get(fulltext.arxiv_id(paper), {})
         results.append(

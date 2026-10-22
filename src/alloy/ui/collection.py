@@ -27,7 +27,10 @@ def show_collection(*, saved: bool):
                 st.session_state.pop("campaign", None)
                 st.error("Invalid campaign record. Supply an Alloy campaign JSON smaller than 5 MB.")
     else:
-        source = st.selectbox("Collection source", ["Synthetic collection", "Reviewed evidence bundle"])
+        sources = ["Reviewed evidence bundle"]
+        if st.query_params.get("demo") == "1":  # the synthetic collection is listed only with ?demo=1
+            sources.insert(0, "Synthetic collection")
+        source = st.selectbox("Collection source", sources)
         reviewed = source == "Reviewed evidence bundle"
         if st.session_state.get("collection_source") not in (None, source):
             st.session_state.pop("campaign", None)

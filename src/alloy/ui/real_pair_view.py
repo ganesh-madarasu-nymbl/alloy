@@ -272,7 +272,7 @@ def show_real_pair() -> None:
     if st.button("Find disagreeing papers", type="primary", disabled=not question.strip()) and _allowed(passcode):
         for key in ("found_pair", "real_pair", "rp_saved", "rp_pinned"):
             st.session_state.pop(key, None)
-        with st.spinner("Searching arXiv through Bond and reading the abstracts..."):
+        with st.spinner("Searching arXiv through Bond, then reading full texts until two papers disagree..."):
             try:
                 st.session_state.found_pair = pair_finder.find(question.strip())
             except Exception as exc:  # noqa: BLE001 - show the reason instead of a stack trace
@@ -314,6 +314,9 @@ def show_real_pair() -> None:
             ]
         )
         st.caption(found.reason)
+        if found.checked:
+            with st.expander(f"What Alloy checked ({len(found.checked)} papers)"):
+                st.markdown("\n".join(f"- {line}" for line in found.checked))
         if st.button("Run audit on this pair", type="primary") and _allowed(passcode):
             with st.spinner("Reading both papers and reproducing them; a new pair takes several minutes..."):
                 try:

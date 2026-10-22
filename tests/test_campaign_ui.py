@@ -94,3 +94,12 @@ def test_new_ui_launch_passes_one_total_budget(monkeypatch, tmp_path):
     assert not app.exception
     assert captured == [60]
     assert app.session_state["campaign"].runs_used == 6
+
+
+def test_public_collection_lists_only_reviewed_evidence():
+    from streamlit.testing.v1 import AppTest
+
+    app = AppTest.from_file(APP, default_timeout=30).run()
+    app.selectbox[0].select("Collection campaign").run()
+    assert not app.exception
+    assert app.selectbox[1].options == ["Reviewed evidence bundle"]

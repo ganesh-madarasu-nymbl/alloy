@@ -40,6 +40,20 @@ MODES = {
 PUBLIC_MODES = ["Real paper pair", "Collection campaign", "Saved campaign"]
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def bond_reachable() -> bool:
+    """Whether a real Bond request succeeds now, so the header never says connected on settings alone."""
+    if not (settings.bond_backend == "http" and settings.bond_configured):
+        return False
+    try:
+        from alloy.knowledge.http_bond import HttpBond
+
+        HttpBond(timeout=10).open().request("tools/list")
+        return True
+    except Exception:  # noqa: BLE001 - any failure means Bond is not usable right now
+        return False
+
+
 def modes_shown(demo: bool) -> list[str]:
     """The real-paper modes by default; ?demo=1 also lists the synthetic run and the read-only views."""
     return list(MODES) if demo else PUBLIC_MODES
@@ -136,7 +150,7 @@ if mode == "Real paper pair":
     from alloy.ui.real_pair_view import show_real_pair
 
     with hero_slot.container():
-        style.hero(None, model=settings.model, bond_live=settings.bond_configured)
+        style.hero(None, model=settings.model, bond_live=bond_reachable())
     show_real_pair()
     st.stop()
 if mode in {"Collection campaign", "Saved campaign"}:
@@ -145,7 +159,7 @@ if mode in {"Collection campaign", "Saved campaign"}:
     child = show_collection(saved=mode == "Saved campaign")
     if child is None:
         with hero_slot.container():
-            style.hero(None, model=settings.model, bond_live=settings.bond_configured)
+            style.hero(None, model=settings.model, bond_live=bond_reachable())
         st.stop()
     st.session_state.inv = child
     st.session_state.saved_record = True
@@ -247,7 +261,7 @@ else:
 
 inv = st.session_state.get("inv")
 with hero_slot.container():
-    style.hero(inv, model=settings.model, bond_live=settings.bond_configured)
+    style.hero(inv, model=settings.model, bond_live=bond_reachable())
 if inv is None:
     if mode == "Synthetic demonstration":
         st.warning(
