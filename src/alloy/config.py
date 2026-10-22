@@ -16,10 +16,15 @@ def _path(var: str, default: str) -> Path:
 
 @dataclass(frozen=True)
 class Settings:
-    model: str = field(default_factory=lambda: os.getenv("ALLOY_MODEL", "claude-opus-5-5"))
+    model: str = field(default_factory=lambda: os.getenv("ALLOY_MODEL", "openai/gpt-oss-120b"))
+    # Any OpenAI-compatible endpoint serves non-Claude models; Groq has a no-card free tier.
+    llm_base_url: str = field(default_factory=lambda: os.getenv("ALLOY_LLM_BASE_URL", "https://api.groq.com/openai/v1"))
+    llm_api_key: str = field(default_factory=lambda: os.getenv("GROQ_API_KEY", ""))
+    # Free tiers cap tokens per minute, and a request counts its output allowance against that cap.
+    max_tokens: int = field(default_factory=lambda: int(os.getenv("ALLOY_MAX_TOKENS", "2048")))
     valency_mcp_url: str = field(default_factory=lambda: os.getenv("VALENCY_MCP_URL", ""))
     valency_token: str = field(default_factory=lambda: os.getenv("VALENCY_TOKEN", ""))
-    bond_backend: str = field(default_factory=lambda: os.getenv("ALLOY_BOND_BACKEND", "claude"))
+    bond_backend: str = field(default_factory=lambda: os.getenv("ALLOY_BOND_BACKEND", "http"))
     cache_dir: Path = field(default_factory=lambda: _path("ALLOY_CACHE_DIR", "cache"))
     run_dir: Path = field(default_factory=lambda: _path("ALLOY_RUN_DIR", "runs"))
     memory_dir: Path = field(default_factory=lambda: _path("ALLOY_MEMORY_DIR", "memory"))
@@ -28,6 +33,8 @@ class Settings:
     def bond_configured(self) -> bool:
         if self.bond_backend == "codex":
             return shutil.which("codex") is not None
+        if self.bond_backend == "http":
+            return bool(self.valency_mcp_url and (self.valency_token or os.getenv("VALENCY_REFRESH_TOKEN")))
         return bool(self.valency_mcp_url)
 
 

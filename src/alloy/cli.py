@@ -38,8 +38,8 @@ def main() -> None:
     coat.add_argument("--runs", type=int, default=30)
 
     sub.add_parser("check", help="show configuration")
-    sub.add_parser("bond-check", help="discover Valency tools using saved Codex OAuth; no model call")
-    bond_search = sub.add_parser("bond-search", help="search Bond through Codex OAuth; no model call")
+    sub.add_parser("bond-check", help="discover Valency tools (token or Codex OAuth); no model call")
+    bond_search = sub.add_parser("bond-search", help="search Bond (token or Codex OAuth); no model call")
     bond_search.add_argument("query")
     bond_search.add_argument("--limit", type=int, default=5)
     bond_import = sub.add_parser("bond-import", help="cache a native MCP result without starting a subprocess")
@@ -88,7 +88,12 @@ def main() -> None:
         return
     if args.command in {"bond-check", "bond-search"}:
         from alloy.knowledge.bond import cache_mcp_result
-        from alloy.knowledge.codex_bond import BondConnectionError, inspect_connection, search_raw
+        from alloy.knowledge.codex_bond import BondConnectionError
+
+        if settings.bond_backend == "http":
+            from alloy.knowledge.http_bond import inspect_connection, search_raw
+        else:
+            from alloy.knowledge.codex_bond import inspect_connection, search_raw
 
         try:
             if args.command == "bond-check":
@@ -101,7 +106,7 @@ def main() -> None:
                 if not args.query.strip() or not 1 <= args.limit <= 100:
                     parser.error("Provide a nonempty query and a limit from 1 to 100")
                 result = search_raw(args.query, args.limit)
-                path, papers = cache_mcp_result(args.query, args.limit, result)
+                path, papers = cache_mcp_result(args.query, args.limit, result, backend=settings.bond_backend)
                 print(json.dumps({"cache": str(path), "papers": [p.model_dump() for p in papers]}, indent=2))
         except (BondConnectionError, OSError, ValueError) as exc:
             parser.exit(1, f"Bond connection unverified: {exc}\n")

@@ -42,13 +42,10 @@ def _claims_text(claims: list[Claim]) -> str:
 
 
 def run_baseline(goal: Goal, claims: list[Claim], run_dir: Path) -> BaselineResult:
-    from anthropic import beta_tool
-
     adapter = get_adapter(goal.adapter)
     runner = Runner(Budget(**goal.budget.model_dump()), run_dir)
     submitted: dict = {}
 
-    @beta_tool
     def run_experiment(
         method: str,
         noise: float,
@@ -87,7 +84,6 @@ def run_baseline(goal: Goal, claims: list[Claim], run_dir: Path) -> BaselineResu
         left = goal.budget.runs - runner.runs_used
         return json.dumps({"run_id": result.id, "metrics": result.metrics, "runs_left": left})
 
-    @beta_tool
     def submit(method: str, deciding_condition: str, reason: str) -> str:
         """Submit your final answer and stop.
 
@@ -104,24 +100,31 @@ def run_baseline(goal: Goal, claims: list[Claim], run_dir: Path) -> BaselineResu
         f"Supported methods: {', '.join(adapter.methods)}\n"
         f"Metric: coef_error (lower is better). Budget: {goal.budget.runs} runs."
     )
-    loop = llm.client().beta.messages.tool_runner(
-        model=settings.model,
-        max_tokens=16000,
-        system=SYSTEM,
-        output_config={"effort": "medium"},
-        tools=[run_experiment, submit],
-        messages=[{"role": "user", "content": prompt}],
-    )
-
     turns = input_tokens = output_tokens = 0
-    for message in loop:
-        turns += 1
-        input_tokens += message.usage.input_tokens
-        output_tokens += message.usage.output_tokens
-        if message.stop_reason == "refusal":
-            raise llm.LLMRefusal("baseline agent declined")
-        if submitted or turns >= MAX_TURNS:
-            break
+    if llm.is_claude():
+        from anthropic import beta_tool
+
+        loop = llm.client().beta.messages.tool_runner(
+            model=settings.model,
+            max_tokens=16000,
+            system=SYSTEM,
+            output_config={"effort": "medium"},
+            tools=[beta_tool(run_experiment), beta_tool(submit)],
+            messages=[{"role": "user", "content": prompt}],
+        )
+        for message in loop:
+            turns += 1
+            input_tokens += message.usage.input_tokens
+            output_tokens += message.usage.output_tokens
+            if message.stop_reason == "refusal":
+                raise llm.LLMRefusal("baseline agent declined")
+            if submitted or turns >= MAX_TURNS:
+                break
+    else:
+        for usage in llm.tool_loop(SYSTEM, prompt, [run_experiment, submit], lambda: bool(submitted), MAX_TURNS):
+            turns += 1
+            input_tokens += usage.get("prompt_tokens", 0)
+            output_tokens += usage.get("completion_tokens", 0)
 
     runner.save_manifest()
     result = BaselineResult(

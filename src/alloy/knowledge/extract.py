@@ -56,6 +56,23 @@ def number_in_quote(value: float, quote: str) -> bool:
     return any(_number(token.replace(",", "")) == value for token in tokens)
 
 
+def anchor_quote(quote: str, passages: list[str]) -> str | None:
+    """The verbatim source text behind a model quote.
+
+    Open models sometimes trim or splice a quote; the claim keeps the one source sentence that
+    holds nearly all of its words, so recorded evidence is always text the paper states.
+    """
+    quote = " ".join(quote.split())
+    text = " ".join(" ".join(p.split()) for p in passages)
+    if not quote or quote in text:
+        return quote or None
+    words = set(re.findall(r"\w+", quote.lower()))
+    sentences = re.split(r"(?<=[.!?])\s+(?=[A-Z])", text)
+    best = max(sentences, key=lambda s: len(words & set(re.findall(r"\w+", s.lower()))))
+    covered = len(words & set(re.findall(r"\w+", best.lower())))
+    return best if covered >= 0.9 * len(words) else None
+
+
 def extract_claims(paper: Paper, condition_keys: tuple[str, ...], start: int = 1) -> list[Claim]:
     if not paper.passages or not any(p.strip() for p in paper.passages):
         raise ValueError(f"{paper.id}: no source passages available for claim extraction")
@@ -66,9 +83,10 @@ def extract_claims(paper: Paper, condition_keys: tuple[str, ...], start: int = 1
     )
     extracted = llm.parse(prompt, ExtractedClaims, system=SYSTEM).claims
     for claim in extracted:
-        quote = " ".join(claim.quote.split())
-        if not quote or not any(quote in " ".join(p.split()) for p in paper.passages):
+        source = anchor_quote(claim.quote, paper.passages)
+        if source is None:
             raise ValueError(f"{paper.id}: extracted quote is absent from supplied passages")
+        claim.quote = source
         if claim.value is not None and _number(claim.value) is None:
             raise ValueError(f"{paper.id}: claim value is not a finite number")
         if claim.value is not None and not number_in_quote(_number(claim.value), claim.quote):

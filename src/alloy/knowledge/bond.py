@@ -90,13 +90,13 @@ def papers_from_mcp(result: dict) -> list[Paper]:
     return papers
 
 
-def cache_mcp_result(query: str, k: int, result: dict):
+def cache_mcp_result(query: str, k: int, result: dict, backend: str = "codex"):
     if not query.strip() or not 1 <= k <= 100:
         raise ValueError("Provide a nonempty research query and a limit from 1 to 100")
     papers = papers_from_mcp(result)
-    path = _cache_path(query, k, backend="codex")
+    path = _cache_path(query, k, backend=backend)
     path.with_suffix(".raw.json").write_text(json.dumps({
-        "backend": "codex", "server": "valency", "tool": "semantic_search_papers",
+        "backend": backend, "server": "valency", "tool": "semantic_search_papers",
         "query": query, "limit": k, "evidence": "metadata_and_abstracts", "result": result,
     }, indent=2))
     path.write_text(PaperList(papers=papers).model_dump_json(indent=2))
@@ -109,14 +109,17 @@ def search(query: str, k: int = 8, use_cache: bool = True) -> list[Paper]:
     path = _cache_path(query, k)
     if use_cache and path.exists():
         return PaperList.model_validate_json(path.read_text(encoding="utf-8")).papers
-    if settings.bond_backend == "codex":
-        from alloy.knowledge.codex_bond import search_raw
+    if settings.bond_backend in {"http", "codex"}:
+        if settings.bond_backend == "http":
+            from alloy.knowledge.http_bond import search_raw
+        else:
+            from alloy.knowledge.codex_bond import search_raw
 
         result = search_raw(query, k)
-        _, papers = cache_mcp_result(query, k, result)
+        _, papers = cache_mcp_result(query, k, result, backend=settings.bond_backend)
         return papers
     if settings.bond_backend != "claude":
-        raise ValueError("ALLOY_BOND_BACKEND must be codex or claude")
+        raise ValueError("ALLOY_BOND_BACKEND must be http, codex or claude")
     if not settings.bond_configured:
         raise RuntimeError("VALENCY_MCP_URL is not set; see .env.example")
 
