@@ -77,6 +77,9 @@ source sentence they came from, and claims whose quote is not in the source are 
 `uv run alloy audit --scenario short_record` runs a plain agent on the configured model and
 compares its cause and method with Alloy's investigation, adding a "second opinion" table to
 the report.
+In the app, the Referee tab of a saved investigation has the same check ("Ask a plain agent"),
+behind the live passcode in public mode, and the report download adds BibTeX references
+from Bond when Bond is configured.
 
 ### Hosting a public copy
 
@@ -245,14 +248,14 @@ No updated efficiency or superiority claim is established here; paid reruns were
 | many_papers | 1/1 / 0/1, flagged as a tie / 41 | 5/5 / 0/5 / 7.4 |
 
 **Rerun on the free model (21 Oct 2026).** One plain-agent run per scenario on GPT-OSS-120B
-through Groq's free tier. The short_record agent run stopped at Groq's token limit, so that row
-has Alloy only. One run per scenario is an anecdote, not a rate.
+through Groq's free tier. The short_record run first stopped at Groq's token limit and was rerun
+on 22 Oct through `alloy audit`. One run per scenario is an anecdote, not a rate.
 
 | Scenario | Alloy cause / answer / runs | Plain agent (GPT-OSS-120B, n=1) cause / answer / runs |
 |---|---|---|
 | noise_simple | right / right / 34 | noise, right / smoothed-sindy, right / 20 |
 | noise_with_decoys | right / right / 43 | noise, right / smoothed-ensemble-sindy, right / 19 |
-| short_record | right / right / 45 | not run (token limit) |
+| short_record | right / right / 45 | t_end, right / smoothed-ensemble-sindy, right / 20 |
 | hidden_threshold | right / no method question / 17 | outliers, wrong / no method question / 20 |
 | many_papers | right / wrong, flagged as a tie / 41 | sparsity threshold, wrong / smoothed-ensemble-sindy, right / 19 |
 
@@ -299,7 +302,7 @@ Both lanes build against `src/alloy/contracts.py`. The knowledge code writes `Cl
 - [x] UI: condition differences, citation trail, saved records and failure history
 - [x] Bounded collection planner, shared-budget campaign records and saved campaign UI
 - [x] Research-style Streamlit UI
-- [ ] Finish the GPT-OSS-120B plain-agent rerun: short_record and repeats (4 of 5 scenarios done, n=1)
+- [x] GPT-OSS-120B plain-agent rerun on all 5 scenarios (n=1 each; repeats would make it a rate)
 - [ ] Public Streamlit Cloud deployment (public-mode guards ready; needs a sign-in at share.streamlit.io)
 - [ ] Record the backup demo video from cached runs
 
